@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+wiki.toml
+/llm-wiki/
+/.llm-wiki/
+/.claude/skills/
+/.agents/skills/
+.env
+.env.*
+.lock

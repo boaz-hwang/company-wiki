@@ -1,0 +1,24 @@
+# Copy to <wiki repository>/.github/workflows/wiki-check.yml.
+# Checks every pull request against the wiki: required fields, folders, links, related targets,
+# and that cited files and line ranges exist. Sources outside the wiki repository must be
+# reachable from the runner (for example a docs folder in the same repository) or lint reports them.
+# If the company-wiki tool repository is private, add `token:` with read access to the second checkout.
+name: Wiki check
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: boaz-hwang/company-wiki
+          path: .company-wiki
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -B .company-wiki/scripts/lint.py
+        env:
+          WIKI_CONFIG: ${{ github.workspace }}/wiki.toml

@@ -1,0 +1,38 @@
+{
+  "title": "Return window split by order date",
+  "summary": "The policy change adds a 30-day window for orders from 2026-02-01 and keeps 14 days for earlier orders and the made-to-order exclusion.",
+  "files": [
+    "policies/customer-service/return-window.md"
+  ],
+  "judgments": [
+    {
+      "kind": "fact",
+      "before": "14 days from delivery for all orders",
+      "proposed": "30 days from delivery for orders placed from 2026-02-01",
+      "reason": "The policy change meeting sets the new window and its start date.",
+      "evidence": [
+        "^[/documents/policy-change.md:2]"
+      ]
+    },
+    {
+      "kind": "scope",
+      "before": "No order-date condition",
+      "proposed": "Orders placed up to 2026-01-31 keep 14 days; the made-to-order exclusion stays for both",
+      "reason": "Applying 30 days to every order would widen the change beyond what the source says.",
+      "evidence": [
+        "^[/documents/policy-change.md:3]",
+        "^[/documents/policy-change.md:4]"
+      ]
+    },
+    {
+      "kind": "relationship",
+      "before": "The two documents are unrelated in the wiki",
+      "proposed": "Update the existing policy page instead of marking a contradiction",
+      "reason": "The windows differ by order date, so they do not conflict for the same order; Git keeps the old version.",
+      "evidence": [
+        "^[/documents/returns.md:2]",
+        "^[/documents/policy-change.md:3]"
+      ]
+    }
+  ]
+}

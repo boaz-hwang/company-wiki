@@ -1,0 +1,28 @@
+[wiki]
+title = "Company Wiki"
+# Adopted knowledge only: concepts/, entities/, policies/, index.md, SCHEMA.md.
+path = "llm-wiki"
+# Workspace outside the wiki: drafts, reviews, decisions, registry.json, excluded.jsonl.
+state = ".llm-wiki"
+reviewer = "human:owner"
+language = "ko"
+
+[sources.documents]
+kind = "documents"
+path = "examples/raw"
+include = ["**/*.md", "**/*.mdx"]
+exclude = ["**/.env*", "**/node_modules/**", "**/.git/**"]
+
+# Paths are relative to this configuration file, or absolute / ~/ paths.
+# Enable only the sources in scope. include/exclude guide the agent's inventory.
+# [sources.claude-sessions]
+# kind = "claude"
+# path = "~/.claude/projects/YOUR-PROJECT"
+# project = "/path/to/your/project"
+# [sources.codex-sessions]
+# kind = "codex"
+# path = "~/.codex/sessions"
+# project = "/path/to/your/project"
+# [sources.Clippings]
+# kind = "clippings"
+# path = "/path/to/vault/Clippings"

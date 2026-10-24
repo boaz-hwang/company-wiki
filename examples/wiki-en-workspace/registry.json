@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "pages": {
+    "concepts/change-of-mind-return": {
+      "revision": null,
+      "recorded_at": "2026-10-24T14:34:36+00:00",
+      "citations": {
+        "/documents/returns.md:3-3": "8c48ae0f2e2c037167d32404c2e5fc585084fdf1ec00efb115c6aea66409b752"
+      }
+    },
+    "policies/customer-service/return-window": {
+      "revision": null,
+      "recorded_at": "2026-10-24T14:34:36+00:00",
+      "citations": {
+        "/documents/returns.md:2-3": "6192c1147fde24edcfa190d3acb5d6b235bfd007227d7f7945b65678399a9203",
+        "/documents/returns.md:3-3": "8c48ae0f2e2c037167d32404c2e5fc585084fdf1ec00efb115c6aea66409b752",
+        "/documents/returns.md:2-2": "0e9f34aa9b19020cdc4e17c756bd5f4b2c819a3a04879f465da643b4c6c1290c"
+      }
+    }
+  }
+}

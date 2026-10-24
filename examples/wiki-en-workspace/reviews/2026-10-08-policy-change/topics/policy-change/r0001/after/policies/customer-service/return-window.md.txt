@@ -1,0 +1,27 @@
+---
+type: policy
+title: Return window
+description: Orders placed up to 2026-01-31 can be returned within 14 days of delivery, orders from 2026-02-01 within 30 days; made-to-order items are excluded from change-of-mind returns.
+owner: store-operations
+sources:
+  - ^[/documents/returns.md:2-3]
+  - ^[/documents/policy-change.md:2-4]
+related:
+  - target: concepts/change-of-mind-return
+    type: applies_to
+    evidence: ^[/documents/policy-change.md:4]
+answers: [How long does a customer have to request a return?]
+aliases: [returns policy, refund window]
+---
+# Return window
+
+## Rule
+
+The window depends on when the order was placed:
+
+- Orders placed up to 2026-01-31: 14 days from delivery.^[/documents/returns.md:2] ^[/documents/policy-change.md:3]
+- Orders placed from 2026-02-01: 30 days from delivery.^[/documents/policy-change.md:2]
+
+## Exceptions
+
+Made-to-order items cannot be returned for a change of mind, under both windows.^[/documents/returns.md:3] ^[/documents/policy-change.md:4] See [[concepts/change-of-mind-return]].
