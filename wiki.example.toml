@@ -2,7 +2,7 @@
 title = "Company Wiki"
 # Adopted knowledge only: concepts/, entities/, policies/, index.md, SCHEMA.md.
 path = "llm-wiki"
-# Workspace outside the wiki: drafts, reviews, decisions, registry.json, excluded.jsonl.
+# Workspace outside the wiki: drafts, reviews, decisions. Citation hashes live in <path>/.verification/.
 state = ".llm-wiki"
 reviewer = "human:owner"
 language = "ko"
@@ -15,6 +15,23 @@ exclude = ["**/.env*", "**/node_modules/**", "**/.git/**"]
 
 # Paths are relative to this configuration file, or absolute / ~/ paths.
 # Enable only the sources in scope. include/exclude guide the agent's inventory.
+# kind: documents, code, slack, jira, notion, confluence, claude, codex.
+# Slack, Jira, Notion and Confluence point to a folder of text exports with the original URL/ID in each file.
+# [sources.code]
+# kind = "code"
+# path = "/path/to/repository"
+# [sources.slack]
+# kind = "slack"
+# path = "/path/to/exports/slack"
+# [sources.jira]
+# kind = "jira"
+# path = "/path/to/exports/jira"
+# [sources.notion]
+# kind = "notion"
+# path = "/path/to/exports/notion"
+# [sources.confluence]
+# kind = "confluence"
+# path = "/path/to/exports/confluence"
 # [sources.claude-sessions]
 # kind = "claude"
 # path = "~/.claude/projects/YOUR-PROJECT"
@@ -23,6 +40,3 @@ exclude = ["**/.env*", "**/node_modules/**", "**/.git/**"]
 # kind = "codex"
 # path = "~/.codex/sessions"
 # project = "/path/to/your/project"
-# [sources.Clippings]
-# kind = "clippings"
-# path = "/path/to/vault/Clippings"

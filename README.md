@@ -19,6 +19,8 @@ Company Wiki is a restructured fork of [BOAZ Wiki](https://github.com/boaz-hwang
 ```text
 llm-wiki/                  adopted knowledge only (your Git repository or a folder)
 ├── SCHEMA.md              rules for this wiki
+├── .verification/         citation checks, not knowledge (hidden in Obsidian)
+│   └── registry.json      cited-line hashes at adoption time, committed so the team and CI share them
 ├── index.md               generated entry point
 ├── concepts/              what things mean: concepts, definitions, principles, models
 ├── entities/              what exists: identity, attributes, stable relations
@@ -29,8 +31,6 @@ llm-wiki/                  adopted knowledge only (your Git repository or a fold
     └── engineering/
 
 .llm-wiki/                 workspace, not knowledge (hidden in Obsidian)
-├── registry.json          cited-line hashes at adoption time
-├── excluded.jsonl         sources the user decided to skip
 └── reviews/<batch>/       drafts, review versions, decisions, receipts, inventory
 ```
 
@@ -87,6 +87,7 @@ I want to build an LLM wiki of the knowledge [organization or team] has adopted.
 Follow this repository's README, AGENTS, SCHEMA, and skills.
 
 - Docs and project paths: [...]
+- Slack, Jira, Notion, Confluence: [export folders and spaces/projects in scope, or none]
 - Related sessions and memory: [location, or check with me]
 - Wiki location and Git repository: [path, or check with me]
 - Owners by area: [e.g. product: product-owner, or check with me]
@@ -106,7 +107,7 @@ review, and query the wiki with this repository's skills.
 
 ## Approving changes
 
-- **Git PR (default):** draft in the workspace → PR to the wiki repository → owner approves → merge → `python3 -B scripts/registry.py record`. Copy [templates/wiki-pr-check.yml](templates/wiki-pr-check.yml) into the wiki repository to run lint on every PR.
+- **Git PR (default):** draft in the workspace → on the branch, `python3 -B scripts/registry.py record` updates `.verification/registry.json` → PR to the wiki repository → owner approves → merge. Owners may also edit their own pages directly in Obsidian; they still run lint and `record <page>` and commit. Copy [templates/wiki-pr-check.yml](templates/wiki-pr-check.yml) into the wiki repository to run lint on every PR.
 - **In-session (`review.py`):** `prepare → preview → decide → apply`. The decision must quote a real user message from a Claude Code or Codex session. Versions, decisions, and receipts stay in the workspace; apply writes only the approved pages and the index, and updates the registry. See [workflow.md](skills/wiki-review/references/workflow.md).
 
 ## Source change detection
@@ -114,12 +115,15 @@ review, and query the wiki with this repository's skills.
 Inspired by [Toss's typed, evidence-backed context relations](https://toss.tech/article/llm_context_topic), each cited line range is hashed when it is adopted. The wiki keeps no copies of originals.
 
 ```bash
-python3 -B scripts/registry.py                         # cited lines that changed, expired, or are unrecorded
+python3 -B scripts/registry.py                         # cited lines that changed, moved, expired, or are unrecorded, plus affected pages
 python3 -B scripts/registry.py --source /documents/x.md # which pages depend on this source
+python3 -B scripts/registry.py --page concepts/x        # which pages are affected if this page changes
 python3 -B scripts/registry.py record concepts/x       # re-record after you re-checked a page
 ```
 
-`changed` means re-check the sentences and relations that cite those lines. `expired` means a session file was cleaned up (Claude Code keeps sessions for `cleanupPeriodDays`), so the evidence can no longer be re-checked; raise the retention or cite a result document instead. lint reports both as warnings; a missing document is an error.
+`changed` means re-check the sentences and relations that cite those lines. `moved` means the content is the same but sits on other lines; fix the line numbers. Affected pages are found by following `depends_on`, `implements`, and `applies_to` relations backwards, transitively. `expired` means a session file was cleaned up (Claude Code keeps sessions for `cleanupPeriodDays`), so the evidence can no longer be re-checked; raise the retention or cite a result document instead. lint reports these as warnings; a missing document is an error.
+
+The agent detects problems, tells the owner, and proposes fixes; it never invalidates or replaces adopted knowledge. Until the owner approves a change, the existing page stays the standard and the agent states the risk it found. It does not carry out actions that break legal, security, or safety constraints (SCHEMA section 7).
 
 ## After the first build
 
@@ -136,9 +140,11 @@ Setup installs the 4 skills into the project's `.claude/skills/` and `.agents/sk
 
 Setup creates `wiki.toml` from [wiki.example.toml](wiki.example.toml). `[wiki] path` is the wiki folder (default `llm-wiki`), `state` is the workspace (default `.llm-wiki`); they must be separate. Register each source with its path and kind. Relative paths resolve from the config file. Select another workspace with `WIKI_CONFIG=/path/to/wiki.toml`.
 
-- **Docs:** file/line citations for Markdown and MDX. Convert other formats to readable text first.
+- **Kinds:** `documents`, `code`, `slack`, `jira`, `notion`, `confluence`, `claude`, `codex`. Personal collections such as web clippings are not sources.
+- **Docs and code:** file/line citations for Markdown, MDX, and source files. Convert other formats to readable text first.
+- **Slack, Jira, Notion, Confluence:** export only the needed content as text into the registered folder, with the original URL/ID, and cite that. There are no dedicated connectors; the agent finds originals through whatever connectors or MCP it has and re-checks them during update.
 - **Sessions:** roles and original line numbers in Claude Code and Codex JSONL, and verification of actual user replies.
-- **Memory, Git, other agents:** read as leads to originals and user statements; no dedicated connectors.
+- **Memory, Git, other agents:** read as leads to originals and user statements.
 - **Source scope:** include/exclude are instructions for the agent, not a sandbox.
 
 The Python tools do not call an LLM. A passing check does not prove the content is right; the owner's approval does that. Local `wiki.toml`, `llm-wiki/`, and `.llm-wiki/` are git-ignored in this tool repository. Keep your wiki in its own repository and decide its visibility first.

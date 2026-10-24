@@ -64,7 +64,6 @@ class WorkspaceTests(unittest.TestCase):
             self.assertEqual(len(list((self.root/provider/'skills').iterdir())),4)
             self.assertEqual((self.root/provider/'skills/wiki-review/SKILL.md').read_bytes(),(TOOL/'skills/wiki-review/SKILL.md').read_bytes())
         self.assertIn('Team Wiki',(self.root/'knowledge/index.md').read_text(encoding='utf-8'))
-        self.assertNotIn('Clippings',self.run_tool('lint.py').stdout)
 
     def test_setup_refreshes_previous_toolkit_pointer_after_rename(self):
         self.run_tool('setup.py')
@@ -91,6 +90,8 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(receipt,(self.root/'.llm-wiki/reviews/first/applied.jsonl').read_bytes())
         self.assertTrue((root/'policies/returns.md').exists())
         self.assertIn('[[policies/returns', (root/'index.md').read_text(encoding='utf-8'))
+        self.assertTrue((root/'.verification/registry.json').is_file())
+        self.assertFalse((self.root/'.llm-wiki/registry.json').exists())
         self.assertIn('fresh', self.run_tool('registry.py','--all').stdout)
         (self.root/'raw/policy.md').write_text('Return within 30 days.\n', encoding='utf-8')
         self.assertIn('원문 변경', self.run_tool('lint.py').stdout)
@@ -124,10 +125,11 @@ class WorkspaceTests(unittest.TestCase):
         p.write_text(json.dumps(record), encoding='utf-8')
         self.assertEqual(self.run_tool('inventory.py',str(p),'--require-complete',ok=False).returncode,2)
 
-    def test_clippings_unconfigured_fails_explicitly(self):
-        result=self.run_tool('clippings_todo.py','--all',ok=False)
-        self.assertEqual(result.returncode,2)
-        self.assertIn('Configure',result.stderr)
+    def test_personal_clippings_are_not_a_source_kind(self):
+        self.config.write_text('[wiki]\npath="knowledge"\n[sources.Clippings]\nkind="clippings"\npath="raw"\n', encoding='utf-8')
+        result=self.run_tool('lint.py',ok=False)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Unsupported source kind',result.stderr)
 
     def test_missing_explicit_configuration_fails(self):
         self.config.unlink()

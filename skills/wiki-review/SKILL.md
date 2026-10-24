@@ -9,7 +9,7 @@ SCHEMA.md와 [실행 형식](references/workflow.md)이 공통 계약이다. 입
 
 wiki.toml에서 위키 위치(wiki.path)·작업 공간(wiki.state)·원천·검토자를 확인하고, 해당 위키의 SCHEMA.md를 기준으로 작업한다. 경로 예시의 llm-wiki·.llm-wiki는 설정값으로 바꾼다.
 
-반영 경로는 둘이다. 위키가 Git 저장소이고 PR 리뷰를 쓰면 **브랜치·PR → 담당자(owner) 승인 → 병합 → `registry.py record`**가 기본이다. 세션 안에서 사용자가 직접 승인하면 review.py의 **prepare → preview → decide → apply**를 쓴다. 어느 쪽이든 검토 기록은 작업 공간에 두고 위키에 넣지 않는다.
+반영 경로는 둘이다. 위키가 Git 저장소이고 PR 리뷰를 쓰면 **브랜치 → `registry.py record`로 .verification/registry.json 갱신 → PR → 담당자(owner) 승인 → 병합**이 기본이다. 세션 안에서 사용자가 직접 승인하면 review.py의 **prepare → preview → decide → apply**를 쓴다. 어느 쪽이든 검토 기록은 작업 공간에 두고 위키에 넣지 않는다.
 
 ## 출력 계약
 
@@ -37,7 +37,7 @@ preview와 apply는 `lint.py`를 자동 실행한다. 구조 오류는 원문·�
 - 주장 차이가 동일 대상·시점·조건에서 충돌하는가, 시점·범위·명칭 차이인가?
 - 기존 검증 이력과 관계의 방향·적용 범위, 사용자 제한 조건을 유지했는가?
 
-기존 위키 점검 요청이면 먼저 `python3 -B scripts/lint.py`와 `python3 -B scripts/registry.py`를 실행하고, 원문이 changed·expired인 인용과 지정 범위 페이지의 근거를 대조한다. 발견한 문제를 수정 초안으로 만들어 같은 검토 절차를 적용한다. 점검 요청만으로 정식 페이지를 수정하지 않는다.
+기존 위키 점검 요청이면 먼저 `python3 -B scripts/lint.py`와 `python3 -B scripts/registry.py`를 실행하고, changed·moved·expired·missing 인용과 관계로 영향받는 페이지, 지정 범위 페이지의 근거를 대조한다. 발견한 문제를 수정 초안으로 만들어 해당 담당자(owner)에게 판단 질문으로 올린다. SCHEMA 7절에 따라 점검 결과만으로 정식 페이지를 수정하거나 무효로 표시하지 않는다.
 
 현재/제안 표현·근거·해석·추천 이유·적용 범위와 diff를 검토 파일에 준비한 뒤, 출력 계약에 따라 질문 목록을 만든다. 주제별 카드는 내부 버전 단위이며 질문을 순차 발송하라는 뜻이 아니다.
 
@@ -49,7 +49,7 @@ PR 경로에서는 담당자의 PR 승인이 결정이다. 세션 경로에서�
 
 ## 3. 승인 범위 반영과 검증
 
-PR 경로에서는 승인된 변경만 병합하고, 병합 후 `python3 -B scripts/registry.py record`로 새 인용의 해시를 기록한다. 원문 변경을 재검토한 페이지는 `registry.py record <페이지>`로 갱신한다.
+PR 경로에서는 PR 브랜치에서 `python3 -B scripts/registry.py record`로 새 인용의 해시를 기록하고, 원문 변경을 재검토한 페이지는 `registry.py record <페이지>`로 갱신해 .verification/registry.json 변경을 같은 PR에 넣는다. 승인된 변경만 병합한다.
 
 세션 경로에서는 apply 직전에 카드와 사용자 제한 조건을 대조하고 승인된 주제만 지정한다. 부분 승인으로 연결이 깨지면 필요한 의존 관계를 해결한다. 기준 문서가 바뀌면 해당 주제만 다시 준비한다. 중단 journal은 recover하되 다른 편집을 덮어쓰지 않는다.
 

@@ -25,7 +25,7 @@ README 시작 프롬프트에서 프로젝트 이름을 “가상 상점”, 문
 | `wiki-en/policies/customer-service/return-window.md` | 정책: 배송 후 14일, 주문 제작 예외. 규칙마다 원문 줄 인용, 담당자, index용 `answers` 질문 |
 | `wiki-en/concepts/change-of-mind-return.md` | 정책이 적용되는 개념. 근거가 붙은 `applies_to` 관계로 연결 |
 | `wiki-en/index.md` | 생성된 입구: 질문 → 페이지, 폴더별 목록(담당자·별칭·관계), 관계 표 |
-| `wiki-en-workspace/registry.json` | 채택 시점의 인용 줄 해시. `returns.md`가 바뀌면 lint와 `registry.py`가 그 원문을 인용한 페이지를 알린다 |
+| `wiki-en/.verification/registry.json` | 채택 시점의 인용 줄 해시. `returns.md`가 바뀌면 lint와 `registry.py`가 그 원문을 인용한 페이지를 알린다 |
 | `wiki-en-workspace/reviews/2026-10-08-policy-change/` | `policy-change.md` 변경안. `review.py prepare`로 고정했고 결정 대기 중 |
 
 에이전트가 할 질문 예시:

@@ -4,7 +4,7 @@
 error   : frontmatter 없음/깨짐, 필수 키(type·title·description·owner) 누락, 잘못된 type·폴더,
           없는 페이지로의 위키링크·related, 잘못된 관계 type·근거, sources 없음,
           없는 파일·범위 밖 줄을 가리키는 인용, 작업 공간(검토 사본 등)을 근거로 인용
-warning : 원문 변경, 세션 원문 만료, 고아 페이지, stale_after 경과, 플레이스홀더 문구,
+warning : 원문 변경, 인용 줄 이동, 세션 원문 만료, 고아 페이지, 플레이스홀더 문구,
           제목 중복, Git이 맡는 상태·이력 필드, index.md 가 최신이 아님
 info    : 해시 기록 없는 인용(registry.py record), contradicts 관계, 200줄 초과
 """
@@ -13,13 +13,12 @@ from __future__ import annotations
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wikilib import (  # noqa: E402
     CITATION_RE, RELATION_TYPES, STATE_ROOT, TYPE_FOLDERS, WIKI_ROOT, WIKILINK_RE, build_resolver, cited_spans,
-    freshness, is_session, iter_pages, load_registry, parse_frontmatter, relations, resolve_resource, slug_of,
+    freshness, is_session, iter_pages, load_registry, moved_to, parse_frontmatter, relations, resolve_resource, slug_of,
 )
 
 PLACEHOLDER_RE = re.compile(r"(TODO|TBD|원문을 참조|pending review|작성 예정|\(추후\))", re.I)
@@ -38,7 +37,6 @@ def main() -> int:
     registry = load_registry()
     inbound: dict[str, int] = defaultdict(int)
     titles: dict[str, list[str]] = defaultdict(list)
-    now = datetime.now(timezone.utc)
     line_counts: dict[Path, int] = {}
 
     for p in pages:
@@ -102,21 +100,15 @@ def main() -> int:
             if a < 1 or b < a or b > n:
                 errors.append(f"{rel}: 인용 줄 범위 오류 `{path}:{a}-{b}` (파일은 {n}줄)")
         for key, state in freshness(slug_of(p), text, registry).items():
-            if state == "changed":
+            if state == "moved":
+                warnings.append(f"{rel}: 인용 줄 이동 `{key}` → `{moved_to(key, slug_of(p), registry)}`. 내용은 같으니 인용 번호를 고치고 registry.py record")
+            elif state == "changed":
                 warnings.append(f"{rel}: 원문 변경 `{key}`. 이 인용에 기댄 문장·관계를 재검토")
             elif state == "unrecorded":
                 infos.append(f"{rel}: 해시 기록 없는 인용 `{key}`. 병합 후 registry.py record")
 
         if PLACEHOLDER_RE.search(body):
             warnings.append(f"{rel}: 플레이스홀더 문구 발견")
-        sa = fm.get("stale_after")
-        if isinstance(sa, str) and sa:
-            try:
-                dt = datetime.fromisoformat(sa.replace("Z", "+00:00"))
-                if dt <= now:
-                    warnings.append(f"{rel}: stale_after 경과 ({sa})")
-            except ValueError:
-                warnings.append(f"{rel}: stale_after 형식 오류 `{sa}`")
         if text.count("\n") > 200:
             infos.append(f"{rel}: {text.count(chr(10))}줄, 200줄 초과. 분할 검토")
 

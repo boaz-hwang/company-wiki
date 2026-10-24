@@ -36,16 +36,15 @@ def main():
             install_skill(skill, dest)
     if WORKSPACE != ROOT:
         pointer = f"\n<!-- company-wiki -->\nWiki rules: {WIKI_ROOT / 'SCHEMA.md'}. Read {WIKI_ROOT / 'index.md'} first. Drafts and records: {STATE_ROOT}.\nToolkit and skills: {ROOT}. Use WIKI_CONFIG={config} with its scripts.\n<!-- /company-wiki -->\n"
-        for name in ('AGENTS.md', 'CLAUDE.md'):
-            target = WORKSPACE / name
-            old = target.read_text(encoding='utf-8-sig') if target.exists() else ''
-            pattern = r'\n?<!-- (?:llm|boaz|company)-wiki -->.*?<!-- /(?:llm|boaz|company)-wiki -->\n?'
-            if re.search(pattern, old, flags=re.S):
-                updated = re.sub(pattern, lambda _: pointer, old, count=1, flags=re.S)
-            else:
-                updated = old + pointer
-            if updated != old:
-                target.write_text(updated, encoding='utf-8')
+        target = WORKSPACE / 'AGENTS.md'
+        old = target.read_text(encoding='utf-8-sig') if target.exists() else ''
+        pattern = r'\n?<!-- (?:llm|boaz|company)-wiki -->.*?<!-- /(?:llm|boaz|company)-wiki -->\n?'
+        if re.search(pattern, old, flags=re.S):
+            updated = re.sub(pattern, lambda _: pointer, old, count=1, flags=re.S)
+        else:
+            updated = old + pointer
+        if updated != old:
+            target.write_text(updated, encoding='utf-8')
     print(f'Workspace ready: {WIKI_ROOT} (state: {STATE_ROOT})\nConfigure sources in {config}; follow the README starter prompt.')
 
 if __name__ == '__main__':

@@ -22,7 +22,8 @@ from pathlib import Path
 from dump_session import messages as session_messages
 from settings import REVIEWER, CONFIG_PATH
 from wikilib import (CITATION_RE, EXTRA_ROOTS, PAGE_TYPES, REPO_ROOT, STATE_ROOT, WIKI_ROOT,
-                     WIKILINK_RE, cited_spans, load_registry, parse_frontmatter, relations, span_key)
+                     VERIFICATION_DIR, WIKILINK_RE, cited_spans, load_registry, parse_frontmatter, relations,
+                     span_key)
 
 KINDS = {"fact", "interpretation", "naming", "relationship", "confidence", "scope"}
 PAGE = re.compile(r"(?:concepts|entities|policies)/(?:[a-z0-9][a-z0-9-]*/)*[a-z0-9][a-z0-9-]*\.md\Z")
@@ -398,7 +399,7 @@ class Review:
 
     def registry_after(self, writes, revisions):
         """반영할 페이지의 인용 줄 해시를 승인 시점 기준으로 기록한다. 다른 페이지 기록은 그대로 둔다."""
-        registry = load_registry(self.state)
+        registry = load_registry(self.wiki, self.state)
         recorded = registry.setdefault("pages", {})
         for rel, data in writes.items():
             citations = {}
@@ -442,7 +443,7 @@ class Review:
                     raise ValueError(f"검사 중 기준 변경: {topic}")
             writes = {"wiki/" + rel: data for rel, data in pages.items()}
             writes["wiki/index.md"] = index
-            writes["state/registry.json"] = registry
+            writes[f"wiki/{VERIFICATION_DIR}/registry.json"] = registry
             receipts = read_bytes(self.batch(batch) / "applied.jsonl") or b""
             for topic, m in selected:
                 decision = self.decision(batch, topic, m["revision"])

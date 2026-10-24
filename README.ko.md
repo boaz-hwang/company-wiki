@@ -19,6 +19,8 @@ Claude Code나 Codex가 문서와 AI 세션 기록을 읽고, 조직이 실제�
 ```text
 llm-wiki/                  채택된 지식만 (별도 Git 저장소 또는 폴더)
 ├── SCHEMA.md              운영 규칙
+├── .verification/         인용 검증 기록, 지식 아님 (Obsidian에서 숨김)
+│   └── registry.json      채택 시점의 인용 줄 해시. 팀·CI가 공유하도록 위키와 함께 커밋
 ├── index.md               생성되는 입구
 ├── concepts/              무엇을 의미하는가: 개념·정의·원리·모델
 ├── entities/              무엇이 존재하는가: 정체성·속성·안정적인 관계
@@ -29,8 +31,6 @@ llm-wiki/                  채택된 지식만 (별도 Git 저장소 또는 폴�
     └── engineering/
 
 .llm-wiki/                 작업 공간, 지식 아님 (Obsidian에서 숨김)
-├── registry.json          채택 시점의 인용 줄 해시
-├── excluded.jsonl         사용자가 제외하기로 한 원천
 └── reviews/<batch>/       초안·검토 버전·결정·receipt·조사 기록
 ```
 
@@ -87,6 +87,7 @@ cd company-wiki
 이 저장소의 README, AGENTS, SCHEMA, 스킬을 따라줘.
 
 - 문서·프로젝트 경로: [...]
+- Slack·Jira·Notion·Confluence: [내보낸 폴더와 대상 채널·프로젝트·스페이스, 또는 없음]
 - 관련 세션·메모리: [위치 또는 확인 필요]
 - 위키 위치와 Git 저장소: [경로 또는 확인 필요]
 - 영역별 담당자: [예: product: product-owner, 또는 확인 필요]
@@ -104,7 +105,7 @@ PR로 반영하고(여기서 승인하면 review.py로), 이후 이 저장소의
 
 ## 변경 승인
 
-- **Git PR (기본):** 작업 공간에서 초안 → 위키 저장소에 PR → 담당자 승인 → 병합 → `python3 -B scripts/registry.py record`. PR마다 lint를 돌리려면 [templates/wiki-pr-check.yml](templates/wiki-pr-check.yml)을 위키 저장소에 복사합니다.
+- **Git PR (기본):** 작업 공간에서 초안 → 브랜치에서 `python3 -B scripts/registry.py record`로 `.verification/registry.json` 갱신 → 위키 저장소에 PR → 담당자 승인 → 병합. 담당자는 자기 페이지를 Obsidian에서 직접 고칠 수도 있으며, 이때도 lint와 `record <페이지>`를 실행하고 커밋합니다. PR마다 lint를 돌리려면 [templates/wiki-pr-check.yml](templates/wiki-pr-check.yml)을 위키 저장소에 복사합니다.
 - **세션 안 승인 (`review.py`):** `prepare → preview → decide → apply`. 결정은 Claude Code·Codex 세션의 실제 사용자 메시지를 인용해야 합니다. 버전·결정·receipt는 작업 공간에 남고, apply는 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
 
 ## 원문 변경 감지
@@ -112,12 +113,15 @@ PR로 반영하고(여기서 승인하면 review.py로), 이후 이 저장소의
 [토스의 근거와 상태를 가진 타입 관계](https://toss.tech/article/llm_context_topic)에서 착안해, 인용한 줄 범위를 채택 시점에 해시로 기록합니다. 위키에는 원문 사본을 두지 않습니다.
 
 ```bash
-python3 -B scripts/registry.py                          # 바뀐·만료된·미기록 인용
+python3 -B scripts/registry.py                          # 바뀐·이동한·만료된·미기록 인용과 영향받는 페이지
 python3 -B scripts/registry.py --source /documents/x.md # 이 원문에 기대는 페이지
+python3 -B scripts/registry.py --page concepts/x        # 이 페이지가 바뀌면 영향받는 페이지
 python3 -B scripts/registry.py record concepts/x        # 페이지를 재확인한 뒤 갱신
 ```
 
-`changed`는 그 줄을 인용한 문장·관계를 재검토하라는 뜻입니다. `expired`는 세션 파일이 정리돼 근거를 다시 확인할 수 없다는 뜻입니다. Claude Code는 `cleanupPeriodDays` 동안 세션을 보관하므로 보관 기간을 늘리거나 결과 문서를 근거로 바꾸세요. lint는 둘 다 경고로, 문서 원문이 없으면 오류로 보고합니다.
+`changed`는 그 줄을 인용한 문장·관계를 재검토하라는 뜻입니다. `moved`는 내용은 같고 원문의 줄 위치만 바뀌었다는 뜻이라 인용 번호만 고치면 됩니다. 영향받는 페이지는 `related`의 `depends_on`·`implements`·`applies_to` 관계를 거꾸로, 연쇄적으로 따라가 찾습니다. `expired`는 세션 파일이 정리돼 근거를 다시 확인할 수 없다는 뜻입니다. Claude Code는 `cleanupPeriodDays` 동안 세션을 보관하므로 보관 기간을 늘리거나 결과 문서를 근거로 바꾸세요. lint는 이것들을 경고로, 문서 원문이 없으면 오류로 보고합니다.
+
+에이전트는 문제를 감지하고 담당자에게 알리며 수정안을 제안할 뿐, 공식 지식을 무효화하거나 대체하지 않습니다. 담당자가 승인하기 전까지는 기존 지식이 기준이고, 에이전트는 발견한 위험을 함께 밝힙니다. 법률·보안·안전 같은 상위 제약을 어기는 실행은 하지 않습니다(SCHEMA 7절).
 
 ## 첫 구축 이후
 
@@ -134,9 +138,11 @@ setup이 스킬 4개를 프로젝트의 `.claude/skills/`와 `.agents/skills/`�
 
 setup이 [wiki.example.toml](wiki.example.toml)로 `wiki.toml`을 만듭니다. `[wiki] path`는 위키 폴더(기본 `llm-wiki`), `state`는 작업 공간(기본 `.llm-wiki`)이며 서로 분리돼야 합니다. 원천은 경로와 kind로 등록합니다. 상대 경로는 설정 파일 기준이고, 다른 작업 공간은 `WIKI_CONFIG=/path/to/wiki.toml`로 고릅니다.
 
-- **문서:** Markdown·MDX의 파일/줄 인용. 다른 형식은 읽을 수 있는 텍스트로 먼저 변환합니다.
+- **kind:** `documents`·`code`·`slack`·`jira`·`notion`·`confluence`·`claude`·`codex`. 개인 웹 클리핑 같은 개인 수집 자료는 원천이 아닙니다.
+- **문서·코드:** Markdown·MDX·소스 파일의 파일/줄 인용. 다른 형식은 읽을 수 있는 텍스트로 먼저 변환합니다.
+- **Slack·Jira·Notion·Confluence:** 등록 폴더에 필요한 내용만 텍스트로 내보내고 원본 URL·ID를 함께 남겨 인용합니다. 전용 커넥터는 없으며, 에이전트가 쓸 수 있는 커넥터·MCP로 원문을 찾고 update 때 원본과 다시 대조합니다.
 - **세션:** Claude Code·Codex JSONL의 역할·원본 줄 번호, 실제 사용자 답변 검증.
-- **메모리·Git·다른 에이전트:** 원문과 사용자 발언을 찾는 단서로 읽습니다. 전용 커넥터는 없습니다.
+- **메모리·Git·다른 에이전트:** 원문과 사용자 발언을 찾는 단서로 읽습니다.
 - **원천 범위:** include/exclude는 에이전트에 대한 지시이며 샌드박스가 아닙니다.
 
 Python 도구는 LLM을 호출하지 않습니다. 검사 통과가 내용의 정확성을 증명하지는 않으며, 그것은 담당자 승인이 맡습니다. 이 도구 저장소에서는 로컬 `wiki.toml`, `llm-wiki/`, `.llm-wiki/`를 Git에서 제외합니다. 위키는 별도 저장소에 두고 공개 범위를 먼저 정하세요.

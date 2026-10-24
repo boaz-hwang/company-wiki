@@ -27,14 +27,18 @@ REVIEWER = CONFIG.get('wiki', {}).get('reviewer', 'human:owner')
 if not isinstance(REVIEWER, str) or not re.fullmatch(r'human:[a-zA-Z0-9_-]+', REVIEWER):
     raise ValueError('wiki.reviewer must be human:<identifier>')
 SOURCES = CONFIG.get('sources', {})
+# Sources an organization already runs on. Personal web clippings are not organizational sources.
+SOURCE_KINDS = {'documents', 'code', 'slack', 'jira', 'notion', 'confluence', 'claude', 'codex'}
 EXTRA_ROOTS = {}
 for alias, entry in SOURCES.items():
     if not re.fullmatch(r'[A-Za-z0-9_-]+', alias) or not isinstance(entry, dict) or not entry.get('path') or not entry.get('kind'):
         raise ValueError(f'Invalid source configuration: {alias}')
+    if entry['kind'] not in SOURCE_KINDS:
+        raise ValueError(f"Unsupported source kind for {alias}: {entry['kind']} ({', '.join(sorted(SOURCE_KINDS))})")
     if entry.get('enabled', True):
         EXTRA_ROOTS[alias] = path(entry['path'])
 # Legacy environment overrides also keep isolated fixture tests portable.
-for alias, env in [('claude-sessions', 'WIKI_CLAUDE_SESSIONS_DIR'), ('codex-sessions', 'WIKI_CODEX_SESSIONS_DIR'), ('Clippings', 'WIKI_CLIPPINGS_DIR')]:
+for alias, env in [('claude-sessions', 'WIKI_CLAUDE_SESSIONS_DIR'), ('codex-sessions', 'WIKI_CODEX_SESSIONS_DIR')]:
     if os.environ.get(env):
         EXTRA_ROOTS[alias] = path(os.environ[env])
 REQUIRED_SOURCES = {alias for alias, entry in SOURCES.items() if entry.get('enabled', True)}

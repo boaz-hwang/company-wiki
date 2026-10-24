@@ -1,6 +1,6 @@
 ---
 name: wiki-ingest
-description: 지정된 문서·에이전트 세션·Clippings에서 조직이 채택한 지식을 찾아 concepts·entities·policies 변경안으로 만든다. 위키에 넣어줘, ingest, 클리핑 정리 요청에 사용하며 정식 반영은 담당자 승인 후 PR 또는 wiki-review로 수행한다.
+description: 지정된 문서·코드·Slack·Jira·Notion·Confluence·에이전트 세션에서 조직이 채택한 지식을 찾아 concepts·entities·policies 변경안으로 만든다. 위키에 넣어줘, ingest 요청에 사용하며 정식 반영은 담당자 승인 후 PR 또는 wiki-review로 수행한다.
 ---
 
 # wiki-ingest
@@ -11,7 +11,9 @@ wiki.toml에서 위키 위치(wiki.path)·작업 공간(wiki.state)·원천·검
 
 ## 1. 원천과 기존 지식 대조
 
-원문을 줄 번호로 읽고, 이미 인용됐는지 `python3 -B scripts/registry.py --source <경로>`로, 검토 대기 중인지 `review.py status`로 확인한다. 문서 원본이 있으면 렌더 사본보다 우선한다. 세션은 같은 주제의 결정·이유를 묶어 읽고 결과 문서를 우선 근거로 삼는다. 클리핑 파일·폴더·미처리 묶음은 [클리핑 처리](references/clippings.md)를 적용한다.
+원문을 줄 번호로 읽고, 이미 인용됐는지 `python3 -B scripts/registry.py --source <경로>`로, 검토 대기 중인지 `review.py status`로 확인한다. 문서 원본이 있으면 렌더 사본보다 우선한다. 세션은 같은 주제의 결정·이유를 묶어 읽고 결과 문서를 우선 근거로 삼는다. Slack·Jira·Notion·Confluence는 [원천 탐색](../wiki-update/references/sources.md)에 따라 내보낸 사본을 줄 인용한다. 개인 클리핑처럼 등록 원천이 아닌 자료는 원래 조직 원천을 찾아 그것을 근거로 삼고, 찾지 못하면 채택 판단 필요로 보고한다.
+
+기존 페이지를 바꾸는 변경이면 `python3 -B scripts/registry.py --page <페이지>`로 그 페이지에 기대는 페이지를 확인하고, 함께 고칠 내용이 있는지 같은 변경안에서 검토한다.
 
 기존 관련 페이지와 비교해 추가·보강·축소·반박·대체를 구분한다. 원문을 고치거나 모델 제안을 사용자 결정으로 취급하지 않는다.
 

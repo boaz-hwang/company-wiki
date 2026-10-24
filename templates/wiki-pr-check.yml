@@ -1,6 +1,7 @@
 # Copy to <wiki repository>/.github/workflows/wiki-check.yml.
 # Checks every pull request against the wiki: required fields, folders, links, related targets,
-# and that cited files and line ranges exist. Sources outside the wiki repository must be
+# and that cited files and line ranges exist. With .verification/registry.json committed, it also warns
+# about changed or moved cited lines. Sources outside the wiki repository must be
 # reachable from the runner (for example a docs folder in the same repository) or lint reports them.
 # If the company-wiki tool repository is private, add `token:` with read access to the second checkout.
 name: Wiki check

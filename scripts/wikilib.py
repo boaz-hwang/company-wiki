@@ -18,11 +18,15 @@ from settings import WIKI_ROOT, REPO_ROOT, EXTRA_ROOTS, SOURCES, STATE_ROOT
 TYPE_FOLDERS = {"concept": "concepts", "entity": "entities", "policy": "policies"}
 PAGE_TYPES = set(TYPE_FOLDERS)
 RELATION_TYPES = {"part_of", "depends_on", "implements", "applies_to", "supersedes", "contradicts", "related_to"}
+# 대상 페이지가 바뀌면 관계를 건 페이지도 재검토해야 하는 관계. 예: policy가 concept에 depends_on.
+IMPACT_TYPES = {"depends_on", "implements", "applies_to"}
+# 검증 기록(인용 해시)은 지식이 아니지만 팀이 공유해야 하므로 위키 저장소의 숨김 경로에 둔다.
+VERIFICATION_DIR = ".verification"
 SESSION_KINDS = {"claude", "codex"}
 
 
 def resolve_resource(path: str) -> Path:
-    """`/저장소경로` 또는 `/Clippings/파일` 을 실제 파일 경로로 바꾼다."""
+    """`/저장소경로` 또는 `/원천별칭/파일` 을 실제 파일 경로로 바꾼다."""
     rel = path.lstrip("/")
     if ".." in Path(rel).parts:
         raise ValueError(f"Source path escapes its root: {path}")
@@ -178,9 +182,13 @@ def dump_frontmatter(data: dict) -> str:
         if isinstance(v, list):
             if not v:
                 out.append(f"{k}: []")
-            elif all(isinstance(x, dict) for x in v):
+            elif any(isinstance(x, dict) for x in v):
+                # related mixes slugs and typed relations; both fit a block list.
                 out.append(f"{k}:")
                 for item in v:
+                    if not isinstance(item, dict):
+                        out.append(f"  - {q(item)}")
+                        continue
                     first = True
                     for ik, iv in item.items():
                         prefix = "  - " if first else "    "
@@ -266,43 +274,103 @@ def cited_spans(text: str) -> list[tuple[str, int, int]]:
     return out
 
 
-def span_hash(path: str, a: int, b: int) -> str | None:
-    """인용한 줄의 내용 해시. 파일이 없거나 범위를 벗어나면 None."""
+def _source_lines(path: str) -> list[bytes] | None:
     try:
         f = resolve_resource(path)
         if not f.is_file():
             return None
-        lines = f.read_bytes().splitlines(keepends=True)
+        return f.read_bytes().splitlines(keepends=True)
     except (OSError, ValueError):
         return None
-    if not 1 <= a <= b <= len(lines):
+
+
+def span_hash(path: str, a: int, b: int) -> str | None:
+    """인용한 줄의 내용 해시. 파일이 없거나 범위를 벗어나면 None."""
+    lines = _source_lines(path)
+    if lines is None or not 1 <= a <= b <= len(lines):
         return None
     return hashlib.sha256(b"".join(lines[a - 1:b])).hexdigest()
+
+
+def relocate(path: str, a: int, b: int, recorded: str) -> tuple[int, int] | None:
+    """기록한 내용이 같은 길이로 다른 줄에 있으면 그 범위. 여러 곳이면 원래 위치에 가장 가까운 곳."""
+    lines = _source_lines(path)
+    if lines is None:
+        return None
+    size = b - a + 1
+    hits = [i for i in range(1, len(lines) - size + 2)
+            if i != a and hashlib.sha256(b"".join(lines[i - 1:i - 1 + size])).hexdigest() == recorded]
+    if not hits:
+        return None
+    i = min(hits, key=lambda x: abs(x - a))
+    return i, i + size - 1
 
 
 def page_spans(text: str) -> dict[str, str | None]:
     return {span_key(p, a, b): span_hash(p, a, b) for p, a, b in cited_spans(text)}
 
 
-def load_registry(state: Path | None = None) -> dict:
+def registry_path(wiki: Path | None = None) -> Path:
+    return (wiki or WIKI_ROOT) / VERIFICATION_DIR / "registry.json"
+
+
+def load_registry(wiki: Path | None = None, state: Path | None = None) -> dict:
     # preview는 반영 후 레지스트리를 임시 파일로 넘겨 검사한다.
     override = os.environ.get("WIKI_REGISTRY")
-    p = Path(override) if override and state is None else (state or STATE_ROOT) / "registry.json"
+    if override and wiki is None:
+        p = Path(override)
+    else:
+        p = registry_path(wiki)
+        legacy = (state or STATE_ROOT) / "registry.json"  # 이전 버전은 작업 공간에 기록했다
+        if not p.exists() and legacy.exists():
+            p = legacy
     if not p.exists():
         return {"version": 1, "pages": {}}
     return json.loads(p.read_text(encoding="utf-8-sig"))
 
 
 def freshness(slug: str, text: str, registry: dict) -> dict[str, str]:
-    """인용별 상태: fresh / changed / expired / missing / unrecorded."""
+    """인용별 상태: fresh / moved / changed / expired / missing / unrecorded."""
     recorded = registry.get("pages", {}).get(slug, {}).get("citations", {})
     out = {}
     for key, current in page_spans(text).items():
-        path = key.rsplit(":", 1)[0]
-        if current is None:
+        path, lines = key.rsplit(":", 1)
+        a, b = (int(x) for x in lines.split("-"))
+        if key in recorded and current != recorded[key] and relocate(path, a, b, recorded[key]):
+            out[key] = "moved"
+        elif current is None:
             out[key] = "expired" if is_session(path) else "missing"
         elif key not in recorded:
             out[key] = "unrecorded"
         else:
             out[key] = "fresh" if recorded[key] == current else "changed"
+    return out
+
+
+def moved_to(key: str, slug: str, registry: dict) -> str | None:
+    """moved 인용의 새 위치 `경로:줄-줄`."""
+    recorded = registry.get("pages", {}).get(slug, {}).get("citations", {}).get(key)
+    path, lines = key.rsplit(":", 1)
+    a, b = (int(x) for x in lines.split("-"))
+    hit = recorded and relocate(path, a, b, recorded)
+    return span_key(path, *hit) if hit else None
+
+
+def dependents(pages: dict[str, dict], roots: set[str]) -> dict[str, tuple[str, str]]:
+    """roots가 바뀌었을 때 IMPACT_TYPES 관계를 따라 영향받는 페이지. 페이지 → (관계, 기대는 페이지)."""
+    resolve = build_resolver([WIKI_ROOT / f"{slug}.md" for slug in pages])
+    incoming: dict[str, list[tuple[str, str]]] = {}
+    for slug, fm in pages.items():
+        for r in relations(fm):
+            target = resolve(str(r.get("target", "")))
+            if target and r.get("type") in IMPACT_TYPES:
+                incoming.setdefault(target, []).append((slug, r["type"]))
+    out: dict[str, tuple[str, str]] = {}
+    queue = list(roots)
+    while queue:
+        page = queue.pop(0)
+        for source, kind in incoming.get(page, []):
+            if source not in roots and source not in out:
+                out[source] = (kind, page)
+                queue.append(source)
     return out

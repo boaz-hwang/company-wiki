@@ -30,7 +30,7 @@ class ReviewTests(unittest.TestCase):
         self.record({'type':'user','message':{'content':'검토한 범위로 승인합니다'}})
         self.addCleanup(patch.stopall)
         patch.dict(review.EXTRA_ROOTS, {'claude-sessions':self.sessions, 'codex-sessions':self.sessions}).start()
-        patch.dict(os.environ, {'WIKI_CLAUDE_SESSIONS_DIR':str(self.sessions), 'WIKI_CODEX_SESSIONS_DIR':str(self.sessions), 'WIKI_CLIPPINGS_DIR':str(self.repo/'no-clips')}).start()
+        patch.dict(os.environ, {'WIKI_CLAUDE_SESSIONS_DIR':str(self.sessions), 'WIKI_CODEX_SESSIONS_DIR':str(self.sessions)}).start()
         self.response = {'by':'human:owner','quote':'검토한 범위로 승인합니다','evidence':'^[/claude-sessions/user.jsonl:1]'}
         self.put('concepts/a.md', page('a', 'old'))
 
@@ -87,7 +87,8 @@ class ReviewTests(unittest.TestCase):
         self.assertFalse((self.wiki/'reviews').exists())
         receipt=json.loads((self.state/'reviews/batch/applied.jsonl').read_text(encoding='utf-8'))
         self.assertEqual(receipt['decision_evidence'],self.response['evidence'])
-        registry=json.loads((self.state/'registry.json').read_text(encoding='utf-8'))
+        self.assertFalse((self.state/'registry.json').exists())
+        registry=json.loads((self.wiki/'.verification/registry.json').read_text(encoding='utf-8'))
         self.assertEqual(set(registry['pages']['concepts/a']['citations']),{'/raw.md:1-1','/raw.md:2-2'})
         self.assertEqual(self.r.status()['batch'][0]['state'],'applied')
 
@@ -186,12 +187,47 @@ class ReviewTests(unittest.TestCase):
         with patch.object(wikilib,'WIKI_ROOT',self.wiki), patch.object(wikilib,'REPO_ROOT',self.repo), \
                 patch.object(wikilib,'STATE_ROOT',self.state):
             text=(self.wiki/'concepts/a.md').read_text(encoding='utf-8')
-            registry=wikilib.load_registry(self.state)
+            registry=wikilib.load_registry(self.wiki, self.state)
             self.assertEqual(set(wikilib.freshness('concepts/a',text,registry).values()),{'fresh'})
             self.raw.write_text('changed evidence\nsecond line\n',encoding='utf-8')
             states=wikilib.freshness('concepts/a',text,registry)
             self.assertEqual(states['/raw.md:1-1'],'changed')
             self.assertEqual(states['/raw.md:2-2'],'fresh')
+
+    def test_inserted_line_marks_citation_moved_not_changed(self):
+        result=self.prepare(); self.approve(result); self.r.apply('batch',['one'])
+        with patch.object(wikilib,'WIKI_ROOT',self.wiki), patch.object(wikilib,'REPO_ROOT',self.repo), \
+                patch.object(wikilib,'STATE_ROOT',self.state):
+            text=(self.wiki/'concepts/a.md').read_text(encoding='utf-8')
+            registry=wikilib.load_registry(self.wiki, self.state)
+            self.raw.write_text('inserted heading\nactual evidence\nsecond line\n',encoding='utf-8')
+            self.assertEqual(wikilib.freshness('concepts/a',text,registry),{'/raw.md:1-1':'moved','/raw.md:2-2':'moved'})
+            self.assertEqual(wikilib.moved_to('/raw.md:1-1','concepts/a',registry),'/raw.md:2-2')
+            self.raw.write_text('inserted heading\nrewritten evidence\nsecond line\n',encoding='utf-8')
+            self.assertEqual(wikilib.freshness('concepts/a',text,registry)['/raw.md:1-1'],'changed')
+
+    def test_legacy_workspace_registry_is_read_until_rewritten(self):
+        self.state.mkdir(parents=True, exist_ok=True)
+        (self.state/'registry.json').write_text(json.dumps({'version':1,'pages':{'concepts/a':{'citations':{}}}}),encoding='utf-8')
+        self.assertIn('concepts/a',wikilib.load_registry(self.wiki, self.state)['pages'])
+        (self.wiki/'.verification').mkdir()
+        (self.wiki/'.verification/registry.json').write_text(json.dumps({'version':1,'pages':{}}),encoding='utf-8')
+        self.assertEqual(wikilib.load_registry(self.wiki, self.state)['pages'],{})
+
+    def test_frontmatter_round_trips_mixed_related(self):
+        fm={'type':'policy','title':'t','related':['concepts/a',{'target':'entities/b','type':'part_of','evidence':'^[/raw.md:1-2]'}]}
+        parsed,_=wikilib.parse_frontmatter(wikilib.dump_frontmatter(fm)+'body\n')
+        self.assertEqual(parsed['related'],fm['related'])
+
+    def test_dependents_follow_impact_relations_transitively(self):
+        pages={'concepts/growth':{},
+               'policies/training':{'related':[{'target':'concepts/growth','type':'depends_on'}]},
+               'entities/products/app':{'related':[{'target':'policies/training','type':'implements'}]},
+               'concepts/other':{'related':['concepts/growth',{'target':'concepts/growth','type':'related_to'}]}}
+        with patch.object(wikilib,'WIKI_ROOT',self.wiki):
+            affected=wikilib.dependents(pages,{'concepts/growth'})
+        self.assertEqual(affected,{'policies/training':('depends_on','concepts/growth'),
+                                   'entities/products/app':('implements','policies/training')})
 
     def test_expired_session_is_distinct_from_missing_document(self):
         text='a ^[/claude-sessions/gone.jsonl:1] b ^[/gone.md:1]'
@@ -246,17 +282,6 @@ class ReviewTests(unittest.TestCase):
 
     def test_state_inside_wiki_rejected(self):
         with self.assertRaisesRegex(ValueError,'분리'): review.Review(self.wiki,self.repo,self.wiki/'state')
-
-    def test_clippings_drafts_do_not_count_as_processed(self):
-        import clippings_todo
-        (self.state/'reviews/working').mkdir(parents=True)
-        (self.state/'reviews/working/draft.md').write_bytes(page('draft','^[/Clippings/clip.md:1]'))
-        with patch.object(wikilib,'WIKI_ROOT',self.wiki), patch.object(clippings_todo,'STATE_ROOT',self.state):
-            self.assertNotIn('clip.md',clippings_todo.processed())
-            self.put('concepts/clip.md',page('published','^[/Clippings/clip.md:1]'))
-            self.assertIn('clip.md',clippings_todo.processed())
-            (self.state/'excluded.jsonl').write_text(json.dumps({'path':'other.md','reason':'off topic'})+'\n',encoding='utf-8')
-            self.assertEqual(clippings_todo.skipped(),{'other.md'})
 
     def test_joint_new_page_citation_uses_sealed_draft(self):
         result=self.prepare(files={

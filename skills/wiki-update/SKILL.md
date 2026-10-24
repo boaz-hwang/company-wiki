@@ -11,7 +11,7 @@ wiki.toml에서 위키 위치(wiki.path)·작업 공간(wiki.state)·원천·검
 
 ## 1. 조사 범위 확정
 
-`review.py status`, 기존 배치 조사 기록, `applied.jsonl`과 위키의 Git 이력(병합된 PR)으로 마지막 실제 반영과 마지막 전체 검토 범위를 각각 확인한다. `python3 -B scripts/registry.py`로 원문이 바뀐(changed) 인용과 만료된(expired) 세션 근거도 조사 대상에 넣는다. 부분 반영일을 전체 검토 완료일로 삼지 않는다. 불명확하면 이전 종합 검토까지 겹쳐 확인하고 보류·미검토 원천을 이어받는다. 조사 종료 시점도 고정한다.
+`review.py status`, 기존 배치 조사 기록, `applied.jsonl`과 위키의 Git 이력(병합된 PR)으로 마지막 실제 반영과 마지막 전체 검토 범위를 각각 확인한다. `python3 -B scripts/registry.py`로 원문이 바뀐(changed)·줄만 이동한(moved)·없어진(missing) 인용, 만료된(expired) 세션 근거, 그 페이지들에 관계로 기대는 영향 페이지도 조사 대상에 넣는다. moved는 인용 번호 수정안으로 처리한다. 부분 반영일을 전체 검토 완료일로 삼지 않는다. 불명확하면 이전 종합 검토까지 겹쳐 확인하고 보류·미검토 원천을 이어받는다. 조사 종료 시점도 고정한다.
 
 ## 2. 전체 자료 대조
 
