@@ -8,16 +8,17 @@
 git -C llm-wiki switch -c wiki/<topic>
 # 초안을 정식 경로에 쓰고
 python3 -B scripts/build_index.py && python3 -B scripts/lint.py
-git -C llm-wiki add -A && git -C llm-wiki commit -m "<변경 요약>" && gh pr create   # 본문에 판단 질문·근거·적용 범위
+python3 -B scripts/registry.py record              # 새 인용 해시를 .verification/registry.json에 기록
+python3 -B scripts/registry.py --page <바꾼 페이지>   # 함께 재검토할 의존 페이지
+git -C llm-wiki add -A && git -C llm-wiki commit -m "<변경 요약>" && gh pr create   # 본문에 판단 질문·근거·적용 범위·영향 페이지
 # 담당자(owner) 승인 후 병합
-python3 -B scripts/registry.py record
 ```
 
-PR 본문에는 아래 카드의 judgments와 같은 내용(이전·제안·이유·근거)을 쓴다. 병합이 채택이며 이력은 Git이 맡는다. 위키 저장소에서 PR마다 lint를 돌리려면 templates/wiki-pr-check.yml을 쓴다.
+PR 본문에는 아래 카드의 judgments와 같은 내용(이전·제안·이유·근거)을 쓴다. 병합이 채택이며 이력은 Git이 맡는다. 원문 변경을 재검토한 페이지는 `registry.py record <페이지>`로 갱신해 같은 PR에 넣는다. 담당자가 자기 페이지를 직접 고칠 때도 같은 검사와 record를 거쳐 커밋한다. 위키 저장소에서 PR마다 lint를 돌리려면 templates/wiki-pr-check.yml을 쓴다.
 
 ## 세션 경로 (review.py)
 
-사용자가 대화에서 직접 승인하는 경우 아래 도구를 쓴다. 모든 파일은 작업 공간에 남고 위키에는 승인된 페이지·index만 쓰인다.
+사용자가 대화에서 직접 승인하는 경우 아래 도구를 쓴다. 검토 파일은 작업 공간에 남고 위키에는 승인된 페이지·index·.verification/registry.json만 쓰인다.
 
 ## 파일 배치
 
