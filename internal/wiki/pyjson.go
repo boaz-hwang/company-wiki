@@ -219,3 +219,56 @@ func plain(v any) any {
 	}
 	return v
 }
+
+// pyJSONIndent encodes like Python's json.dumps(value, ensure_ascii=False, indent=2).
+func pyJSONIndent(v any) string {
+	var b strings.Builder
+	writeIndented(&b, v, 0)
+	return b.String()
+}
+
+func writeIndented(b *strings.Builder, v any, depth int) {
+	pad := strings.Repeat("  ", depth+1)
+	end := strings.Repeat("  ", depth)
+	switch x := v.(type) {
+	case []any:
+		if len(x) == 0 {
+			b.WriteString("[]")
+			return
+		}
+		b.WriteString("[\n")
+		for i, item := range x {
+			if i > 0 {
+				b.WriteString(",\n")
+			}
+			b.WriteString(pad)
+			writeIndented(b, item, depth+1)
+		}
+		b.WriteString("\n" + end + "]")
+	case *omap:
+		if len(x.keys) == 0 {
+			b.WriteString("{}")
+			return
+		}
+		b.WriteString("{\n")
+		for i, k := range x.keys {
+			if i > 0 {
+				b.WriteString(",\n")
+			}
+			b.WriteString(pad)
+			writePyString(b, k)
+			b.WriteString(": ")
+			writeIndented(b, x.m[k], depth+1)
+		}
+		b.WriteString("\n" + end + "}")
+	case map[string]any:
+		keys := make([]string, 0, len(x))
+		for k := range x {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		writeIndented(b, &omap{keys: keys, m: x}, depth)
+	default:
+		writePyJSON(b, v, false)
+	}
+}
