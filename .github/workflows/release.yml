@@ -1,0 +1,42 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./... && go test -count=1 ./...
+      - name: Build binaries
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -eu
+          mkdir -p dist
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            os=${target%/*}; arch=${target#*/}; exe=company-wiki
+            [ "$os" = windows ] && exe=company-wiki.exe
+            work=$(mktemp -d)
+            CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath \
+              -ldflags "-s -w -X github.com/boaz-hwang/company-wiki/internal/wiki.Version=$VERSION" \
+              -o "$work/$exe" ./cmd/company-wiki
+            cp LICENSE README.md "$work/"
+            # Asset names carry no version so releases/latest/download/<name> stays stable.
+            if [ "$os" = windows ]; then
+              (cd "$work" && zip -q "$GITHUB_WORKSPACE/dist/company-wiki_${os}_${arch}.zip" "$exe" LICENSE README.md)
+            else
+              tar -C "$work" -czf "dist/company-wiki_${os}_${arch}.tar.gz" "$exe" LICENSE README.md
+            fi
+          done
+          (cd dist && sha256sum * > checksums.txt)
+          cat dist/checksums.txt
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/* --title "${{ github.ref_name }}" --generate-notes
