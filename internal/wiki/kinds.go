@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -36,13 +37,7 @@ func kindNames(sorted bool) []string {
 	out := append([]string(nil), kindOrder...)
 	if sorted {
 		// Error messages list kinds alphabetically.
-		for i := range out {
-			for j := i + 1; j < len(out); j++ {
-				if out[j] < out[i] {
-					out[i], out[j] = out[j], out[i]
-				}
-			}
-		}
+		sort.Strings(out)
 	}
 	return out
 }
