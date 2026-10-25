@@ -314,7 +314,7 @@ func (r *Review) dependency(ref string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		lines := splitLines(data)
+		lines := splitLines(normalizeEOL(data))
 		a, b := atoi(m[2]), atoi(m[2])
 		if m[3] != "" {
 			b = atoi(m[3])
@@ -1032,7 +1032,7 @@ func (r *Review) registryAfter(writes map[string][]byte, revisions map[string]st
 				local = filepath.ToSlash(l)
 			}
 			if w, ok := writes[local]; ok && local != "" {
-				lines := splitLines(w)
+				lines := splitLines(normalizeEOL(w))
 				if !(1 <= s.A && s.A <= s.B && s.B <= len(lines)) {
 					continue
 				}

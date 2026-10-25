@@ -596,3 +596,20 @@ func TestRecoveryRefusesOverwritingUnrelatedEdit(t *testing.T) {
 		t.Fatal("not restored")
 	}
 }
+
+func TestCitationHashIgnoresLineEndingConversion(t *testing.T) {
+	f := newFixture(t)
+	res := f.prepare("one", nil, nil)
+	must(t, f.approve(res, "approved"))
+	_, err := f.r.Apply("batch", []string{"one"})
+	must(t, err)
+	reg, _ := f.cfg.loadRegistry()
+	text := string(f.read("concepts/a.md"))
+	// A Windows checkout with core.autocrlf rewrites LF as CRLF.
+	must(t, os.WriteFile(f.raw, []byte("actual evidence\r\nsecond line\r\n"), 0o644))
+	for _, ks := range f.cfg.freshness("concepts/a", text, reg) {
+		if ks.state != "fresh" {
+			t.Fatal(ks)
+		}
+	}
+}

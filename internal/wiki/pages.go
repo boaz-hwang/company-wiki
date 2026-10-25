@@ -1,6 +1,7 @@
 package wiki
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -217,6 +218,15 @@ func splitLines(data []byte) [][]byte {
 	return out
 }
 
+// normalizeEOL turns CRLF into LF so a cited range hashes the same on every OS,
+// even when Git converts line endings on checkout. Line numbers do not change.
+func normalizeEOL(data []byte) []byte {
+	if !bytes.Contains(data, []byte("\r\n")) {
+		return data
+	}
+	return bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+}
+
 func sha(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
@@ -239,7 +249,7 @@ func (c *Config) sourceLines(path string) [][]byte {
 	if err != nil {
 		return nil
 	}
-	lines := splitLines(data)
+	lines := splitLines(normalizeEOL(data))
 	if lines == nil {
 		lines = [][]byte{}
 	}
