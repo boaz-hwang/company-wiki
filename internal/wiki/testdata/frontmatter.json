@@ -1,0 +1,109 @@
+[
+ {
+  "input": "---\ntype: concept\ntitle: A\n---\nbody\n",
+  "fm": {
+   "type": "concept",
+   "title": "A"
+  },
+  "body": "body\n"
+ },
+ {
+  "input": "---\ntype: policy # comment\ntitle: \"Quoted # not comment\"\nowner: 'x'\nflag: true\nempty: []\nmap: {}\n---\n",
+  "fm": {
+   "type": "policy",
+   "title": "Quoted # not comment",
+   "owner": "x",
+   "flag": true,
+   "empty": [],
+   "map": {}
+  },
+  "body": ""
+ },
+ {
+  "input": "---\nsources: [\"^[/a.md:1]\", '^[/b.md:2-3]', plain]\nrelated: [concepts/a, { target: entities/b, type: part_of }]\n---\n",
+  "fm": {
+   "sources": [
+    "^[/a.md:1]",
+    "^[/b.md:2-3]",
+    "plain"
+   ],
+   "related": [
+    "concepts/a",
+    {
+     "target": "entities/b",
+     "type": "part_of"
+    }
+   ]
+  },
+  "body": ""
+ },
+ {
+  "input": "---\nrelated:\n  - concepts/a\n  - target: entities/b\n    type: depends_on\n    evidence: ^[/raw.md:1-2]\n  - https://example.com/x\n  - ^[/a.md:1]\nanswers:\n  - 질문 하나?\n\n  - \"두 번째: 질문\"\n---\nbody\n",
+  "fm": {
+   "related": [
+    "concepts/a",
+    {
+     "target": "entities/b",
+     "type": "depends_on",
+     "evidence": "^[/raw.md:1-2]"
+    },
+    "https://example.com/x",
+    "^[/a.md:1]"
+   ],
+   "answers": [
+    "질문 하나?",
+    "두 번째: 질문"
+   ]
+  },
+  "body": "body\n"
+ },
+ {
+  "input": "﻿---\r\ntype: entity\r\ntitle: CRLF\r\n---\r\nbody\r\n",
+  "fm": {
+   "type": "entity",
+   "title": "CRLF"
+  },
+  "body": "body\n"
+ },
+ {
+  "input": "no frontmatter\n",
+  "fm": null,
+  "body": "no frontmatter\n"
+ },
+ {
+  "input": "---\nkey:\n  nested: value\n  - item\ntitle:   spaced   \n---\n",
+  "fm": {
+   "key": [
+    "item"
+   ],
+   "title": "spaced"
+  },
+  "body": ""
+ },
+ {
+  "input": "---\nx: [a, [b, c], {d: e}]\ny: True\nz: FALSE\nw: \"\"\n---\n",
+  "fm": {
+   "x": [
+    "a",
+    [
+     "b",
+     "c"
+    ],
+    {
+     "d": "e"
+    }
+   ],
+   "y": true,
+   "z": false,
+   "w": ""
+  },
+  "body": ""
+ },
+ {
+  "input": "---\n 한글키: 값\n한글키: 값 # 주석\n---\n",
+  "fm": {
+   "한글키": "값"
+  },
+  "body": ""
+ }
+]
