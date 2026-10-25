@@ -79,7 +79,20 @@ git clone https://github.com/boaz-hwang/company-wiki.git
 cd company-wiki
 ```
 
-Open this folder in your coding agent, fill in the brackets, and paste:
+To set up a workspace yourself, run setup in a terminal. It shows a checklist of source kinds: move with ↑↓, toggle with space, confirm with enter, then type each path. Paths that do not exist are rejected.
+
+```bash
+WIKI_CONFIG=/path/to/workspace/wiki.toml python3 -B scripts/setup.py
+```
+
+Agents cannot answer terminal prompts, so they ask you which sources and paths to register and pass them as options (`python3 -B scripts/setup.py --list-kinds` shows the kinds). Run with `--source` again later to add sources to an existing config.
+
+```bash
+python3 -B scripts/setup.py --source documents=../docs --source slack=../exports/slack \
+  --source code:server=../server --source claude=~/.claude/projects/-path-to-project
+```
+
+Or open this folder in your coding agent, fill in the brackets, and paste:
 
 ```text
 I want to build an LLM wiki of the knowledge [organization or team] has adopted.
@@ -138,7 +151,7 @@ Setup installs the 4 skills into the project's `.claude/skills/` and `.agents/sk
 
 ## Configuration
 
-Setup creates `wiki.toml` from [wiki.example.toml](wiki.example.toml). `[wiki] path` is the wiki folder (default `llm-wiki`), `state` is the workspace (default `.llm-wiki`); they must be separate. Register each source with its path and kind. Relative paths resolve from the config file. Select another workspace with `WIKI_CONFIG=/path/to/wiki.toml`.
+Setup writes `wiki.toml` with the sources you selected; [wiki.example.toml](wiki.example.toml) shows every option. `[wiki] path` is the wiki folder (default `llm-wiki`), `state` is the workspace (default `.llm-wiki`); they must be separate. Register each source with its path and kind. Relative paths resolve from the config file. Select another workspace with `WIKI_CONFIG=/path/to/wiki.toml`.
 
 - **Kinds:** `documents`, `code`, `slack`, `jira`, `notion`, `confluence`, `claude`, `codex`. Personal collections such as web clippings are not sources.
 - **Docs and code:** file/line citations for Markdown, MDX, and source files. Convert other formats to readable text first.

@@ -125,6 +125,33 @@ class WorkspaceTests(unittest.TestCase):
         p.write_text(json.dumps(record), encoding='utf-8')
         self.assertEqual(self.run_tool('inventory.py',str(p),'--require-complete',ok=False).returncode,2)
 
+    def test_new_workspace_registers_selected_sources(self):
+        self.config.unlink()
+        (self.root/'exports/slack').mkdir(parents=True)
+        (self.root/'repo-a').mkdir(); (self.root/'repo-b').mkdir()
+        refused=self.run_tool('setup.py',ok=False)
+        self.assertEqual(refused.returncode,2)
+        self.assertIn('--source',refused.stderr)
+        self.assertFalse(self.config.exists())
+        self.run_tool('setup.py','--source','documents=raw','--source','slack=exports/slack','--source','code=repo-a','--source','code=repo-b')
+        import tomllib
+        sources=tomllib.loads(self.config.read_text(encoding='utf-8'))['sources']
+        self.assertEqual({k:v['kind'] for k,v in sources.items()},{'documents':'documents','slack':'slack','code':'code','code-repo-b':'code'})
+        self.assertNotIn('examples/raw',self.config.read_text(encoding='utf-8'))
+        self.run_tool('setup.py','--source','claude=sessions')
+        self.assertIn('claude-sessions',tomllib.loads(self.config.read_text(encoding='utf-8'))['sources'])
+        self.assertIn('0 errors',self.run_tool('lint.py').stdout)
+
+    def test_setup_rejects_missing_path_and_unknown_kind(self):
+        for spec in ('slack=nowhere','clippings=raw','documents'):
+            self.assertEqual(self.run_tool('setup.py','--source',spec,ok=False).returncode,1)
+        self.assertNotIn('nowhere',self.config.read_text(encoding='utf-8'))
+
+    def test_lint_warns_when_registered_source_is_gone(self):
+        self.run_tool('setup.py')
+        (self.root/'raw/policy.md').unlink(); (self.root/'raw').rmdir()
+        self.assertIn('원천 `notes` 경로 없음',self.run_tool('lint.py').stdout)
+
     def test_personal_clippings_are_not_a_source_kind(self):
         self.config.write_text('[wiki]\npath="knowledge"\n[sources.Clippings]\nkind="clippings"\npath="raw"\n', encoding='utf-8')
         result=self.run_tool('lint.py',ok=False)

@@ -4,6 +4,8 @@ import os
 import re
 import tomllib
 from platform_io import configure_output
+# Sources an organization already runs on. Personal web clippings are not organizational sources.
+from source_kinds import SOURCE_KINDS
 
 configure_output()
 
@@ -27,8 +29,6 @@ REVIEWER = CONFIG.get('wiki', {}).get('reviewer', 'human:owner')
 if not isinstance(REVIEWER, str) or not re.fullmatch(r'human:[a-zA-Z0-9_-]+', REVIEWER):
     raise ValueError('wiki.reviewer must be human:<identifier>')
 SOURCES = CONFIG.get('sources', {})
-# Sources an organization already runs on. Personal web clippings are not organizational sources.
-SOURCE_KINDS = {'documents', 'code', 'slack', 'jira', 'notion', 'confluence', 'claude', 'codex'}
 EXTRA_ROOTS = {}
 for alias, entry in SOURCES.items():
     if not re.fullmatch(r'[A-Za-z0-9_-]+', alias) or not isinstance(entry, dict) or not entry.get('path') or not entry.get('kind'):

@@ -1,3 +1,5 @@
+# Reference for every option. setup.py writes wiki.toml with the sources you select;
+# this file's own documents source points to the bundled examples.
 [wiki]
 title = "Company Wiki"
 # Adopted knowledge only: concepts/, entities/, policies/, index.md, SCHEMA.md.

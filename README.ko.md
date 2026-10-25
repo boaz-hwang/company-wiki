@@ -79,7 +79,20 @@ git clone https://github.com/boaz-hwang/company-wiki.git
 cd company-wiki
 ```
 
-이 폴더를 코딩 에이전트로 열고 괄호를 채워 붙여 넣으세요.
+작업 공간을 직접 만들 때는 터미널에서 setup을 실행합니다. 원천 종류가 체크박스로 나오고, ↑↓로 이동하고 space로 선택한 뒤 enter로 넘어가 경로를 입력합니다. 없는 경로는 받지 않습니다.
+
+```bash
+WIKI_CONFIG=/path/to/workspace/wiki.toml python3 -B scripts/setup.py
+```
+
+에이전트는 터미널 질문에 답할 수 없으므로, 등록할 원천과 경로를 사용자에게 먼저 묻고 옵션으로 넘깁니다(`python3 -B scripts/setup.py --list-kinds`로 종류 확인). 나중에 `--source`로 다시 실행하면 기존 설정에 원천을 추가합니다.
+
+```bash
+python3 -B scripts/setup.py --source documents=../docs --source slack=../exports/slack \
+  --source code:server=../server --source claude=~/.claude/projects/-path-to-project
+```
+
+또는 이 폴더를 코딩 에이전트로 열고 괄호를 채워 붙여 넣으세요.
 
 ```text
 [조직 또는 팀]이 채택한 지식으로 LLM 위키를 만들거야.
@@ -136,7 +149,7 @@ setup이 스킬 4개를 프로젝트의 `.claude/skills/`와 `.agents/skills/`�
 
 ## 설정
 
-setup이 [wiki.example.toml](wiki.example.toml)로 `wiki.toml`을 만듭니다. `[wiki] path`는 위키 폴더(기본 `llm-wiki`), `state`는 작업 공간(기본 `.llm-wiki`)이며 서로 분리돼야 합니다. 원천은 경로와 kind로 등록합니다. 상대 경로는 설정 파일 기준이고, 다른 작업 공간은 `WIKI_CONFIG=/path/to/wiki.toml`로 고릅니다.
+setup이 고른 원천으로 `wiki.toml`을 만듭니다. 모든 옵션은 [wiki.example.toml](wiki.example.toml)에 있습니다. `[wiki] path`는 위키 폴더(기본 `llm-wiki`), `state`는 작업 공간(기본 `.llm-wiki`)이며 서로 분리돼야 합니다. 원천은 경로와 kind로 등록합니다. 상대 경로는 설정 파일 기준이고, 다른 작업 공간은 `WIKI_CONFIG=/path/to/wiki.toml`로 고릅니다.
 
 - **kind:** `documents`·`code`·`slack`·`jira`·`notion`·`confluence`·`claude`·`codex`. 개인 웹 클리핑 같은 개인 수집 자료는 원천이 아닙니다.
 - **문서·코드:** Markdown·MDX·소스 파일의 파일/줄 인용. 다른 형식은 읽을 수 있는 텍스트로 먼저 변환합니다.

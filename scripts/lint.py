@@ -4,7 +4,7 @@
 error   : frontmatter 없음/깨짐, 필수 키(type·title·description·owner) 누락, 잘못된 type·폴더,
           없는 페이지로의 위키링크·related, 잘못된 관계 type·근거, sources 없음,
           없는 파일·범위 밖 줄을 가리키는 인용, 작업 공간(검토 사본 등)을 근거로 인용
-warning : 원문 변경, 인용 줄 이동, 세션 원문 만료, 고아 페이지, 플레이스홀더 문구,
+warning : 등록 원천 경로 없음, 원문 변경, 인용 줄 이동, 세션 원문 만료, 고아 페이지, 플레이스홀더 문구,
           제목 중복, Git이 맡는 상태·이력 필드, index.md 가 최신이 아님
 info    : 해시 기록 없는 인용(registry.py record), contradicts 관계, 200줄 초과
 """
@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wikilib import (  # noqa: E402
-    CITATION_RE, RELATION_TYPES, STATE_ROOT, TYPE_FOLDERS, WIKI_ROOT, WIKILINK_RE, build_resolver, cited_spans,
+    CITATION_RE, EXTRA_ROOTS, RELATION_TYPES, SOURCES, STATE_ROOT, TYPE_FOLDERS, WIKI_ROOT, WIKILINK_RE, build_resolver, cited_spans,
     freshness, is_session, iter_pages, load_registry, moved_to, parse_frontmatter, relations, resolve_resource, slug_of,
 )
 
@@ -38,6 +38,9 @@ def main() -> int:
     inbound: dict[str, int] = defaultdict(int)
     titles: dict[str, list[str]] = defaultdict(list)
     line_counts: dict[Path, int] = {}
+    for alias in SOURCES:
+        if alias in EXTRA_ROOTS and not EXTRA_ROOTS[alias].exists():
+            warnings.append(f"wiki.toml: 원천 `{alias}` 경로 없음 `{EXTRA_ROOTS[alias]}`")
 
     for p in pages:
         rel = p.relative_to(WIKI_ROOT).as_posix()
