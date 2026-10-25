@@ -1,22 +1,22 @@
 # 위키 검토 도구 사용법
 
-저장소 루트에서 실행한다. Python 표준 라이브러리만 필요하다. 규칙은 `SCHEMA.md`의 변경과 승인 절이다. `llm-wiki`(위키)와 `.llm-wiki`(작업 공간)는 기본값이며 실제 경로와 검토자는 wiki.toml을 따른다.
+`company-wiki` CLI로 실행한다. 명령은 현재 폴더부터 위로 wiki.toml을 찾고, WIKI_CONFIG로 다른 설정을 지정할 수 있다. 규칙은 `SCHEMA.md`의 변경과 승인 절이다. `llm-wiki`(위키)와 `.llm-wiki`(작업 공간)는 기본값이며 실제 경로와 검토자는 wiki.toml을 따른다.
 
 ## Git PR 경로 (기본)
 
 ```bash
 git -C llm-wiki switch -c wiki/<topic>
 # 초안을 정식 경로에 쓰고
-python3 -B scripts/build_index.py && python3 -B scripts/lint.py
-python3 -B scripts/registry.py record              # 새 인용 해시를 .verification/registry.json에 기록
-python3 -B scripts/registry.py --page <바꾼 페이지>   # 함께 재검토할 의존 페이지
+company-wiki index && company-wiki lint
+company-wiki registry record              # 새 인용 해시를 .verification/registry.json에 기록
+company-wiki registry --page <바꾼 페이지>   # 함께 재검토할 의존 페이지
 git -C llm-wiki add -A && git -C llm-wiki commit -m "<변경 요약>" && gh pr create   # 본문에 판단 질문·근거·적용 범위·영향 페이지
 # 담당자(owner) 승인 후 병합
 ```
 
-PR 본문에는 아래 카드의 judgments와 같은 내용(이전·제안·이유·근거)을 쓴다. 병합이 채택이며 이력은 Git이 맡는다. 원문 변경을 재검토한 페이지는 `registry.py record <페이지>`로 갱신해 같은 PR에 넣는다. 담당자가 자기 페이지를 직접 고칠 때도 같은 검사와 record를 거쳐 커밋한다. 위키 저장소에서 PR마다 lint를 돌리려면 templates/wiki-pr-check.yml을 쓴다.
+PR 본문에는 아래 카드의 judgments와 같은 내용(이전·제안·이유·근거)을 쓴다. 병합이 채택이며 이력은 Git이 맡는다. 원문 변경을 재검토한 페이지는 `company-wiki registry record <페이지>`로 갱신해 같은 PR에 넣는다. 담당자가 자기 페이지를 직접 고칠 때도 같은 검사와 record를 거쳐 커밋한다. 위키 저장소에서 PR마다 lint를 돌리려면 templates/wiki-pr-check.yml을 쓴다.
 
-## 세션 경로 (review.py)
+## 세션 경로 (company-wiki review)
 
 사용자가 대화에서 직접 승인하는 경우 아래 도구를 쓴다. 검토 파일은 작업 공간에 남고 위키에는 승인된 페이지·index·.verification/registry.json만 쓰인다.
 
@@ -89,12 +89,12 @@ PR 본문에는 아래 카드의 judgments와 같은 내용(이전·제안·이�
 ## 준비와 검토
 
 ```bash
-python3 scripts/review.py prepare batch-id topic-id --card .llm-wiki/reviews/batch-id/working/topic-id/card.json --draft-dir .llm-wiki/reviews/batch-id/working/topic-id/draft
-python3 scripts/review.py preview batch-id topic-id
-python3 scripts/review.py status batch-id
+company-wiki review prepare batch-id topic-id --card .llm-wiki/reviews/batch-id/working/topic-id/card.json --draft-dir .llm-wiki/reviews/batch-id/working/topic-id/draft
+company-wiki review preview batch-id topic-id
+company-wiki review status batch-id
 ```
 
-prepare가 전체 revision 해시와 review.md 경로를 출력한다. preview는 임시 합본에서 build_index.py와 lint.py를 자동 실행해 index·인용·링크를 검사한다. 이 구조 검사 뒤 근거·의미·범위 검토는 wiki-review가 수행한다. 정식 페이지나 index는 바꾸지 않는다. 서로 새 페이지를 참조하는 주제는 `preview batch-id topic-a topic-b`로 함께 검사한다.
+prepare가 전체 revision 해시와 review.md 경로를 출력한다. preview는 임시 합본에서 index 생성과 lint를 자동 실행해 index·인용·링크를 검사한다. 이 구조 검사 뒤 근거·의미·범위 검토는 wiki-review가 수행한다. 정식 페이지나 index는 바꾸지 않는다. 서로 새 페이지를 참조하는 주제는 `preview batch-id topic-a topic-b`로 함께 검사한다.
 
 사용자에게 보내는 최종 답변은 SKILL.md의 출력 계약에 따른 간결한 번호 질문 목록이다. 카드·검사 로그·상세 diff는 내부 검토 자료로 보존하고 질문에 필요한 맥락만 추린다. 실제 답을 기다리되 승인 대기를 이유로 준비·검사를 미루지 않는다.
 
@@ -120,7 +120,7 @@ prepare가 전체 revision 해시와 review.md 경로를 출력한다. preview�
 ```
 
 ```bash
-python3 scripts/review.py decide batch-id topic-id --revision FULL_REVISION_HASH --decision approved --response .llm-wiki/reviews/batch-id/working/response.json
+company-wiki review decide batch-id topic-id --revision FULL_REVISION_HASH --decision approved --response .llm-wiki/reviews/batch-id/working/response.json
 ```
 
 decision: approved / changes_requested / deferred / rejected. quote는 실제 사용자 메시지의 연속된 원문이어야 한다. Claude 일반·작업 중 추가 메시지와 Codex 사용자 메시지를 지원한다. 모델·도구 출력을 인용하면 실패한다. 원본 세션 파일은 위키에 복사하지 않는다. `WIKI_CLAUDE_SESSIONS_DIR`와 `WIKI_CODEX_SESSIONS_DIR`로 원본 위치를 지정할 수 있다.
@@ -130,8 +130,8 @@ decision: approved / changes_requested / deferred / rejected. quote는 실제 �
 ## 반영과 재검토
 
 ```bash
-python3 scripts/review.py apply batch-id topic-id
-python3 scripts/review.py status
+company-wiki review apply batch-id topic-id
+company-wiki review status
 ```
 
 apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하고 임시 전체 lint를 통과한 뒤 반영한다. 위키에는 선택한 페이지·파생 index·.verification/registry.json(인용 줄 해시)만 쓰고, 작업 공간에는 반영 receipt(applied.jsonl)를 쓴다. 적용된 동일 버전 재실행은 추가 쓰기를 하지 않는다. 위키가 Git 저장소라면 반영 뒤 사용자가 지정한 방식으로 커밋한다.
@@ -141,7 +141,7 @@ apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하�
 쓰기에 실패하면 이전 상태로 되돌린다. 프로세스가 중단되어 journal이 남은 경우:
 
 ```bash
-python3 scripts/review.py recover
+company-wiki review recover
 ```
 
 복구 대상에 제3의 편집 내용이 있으면 덮어쓰지 않고 중단한다. journal before/after와 현재 파일을 대조하고 사용자 작업을 보존한 뒤 재시도한다. 위키에는 변경 페이지와 index만 커밋한다. 카드·판단·receipt는 작업 공간 기록이며 사용자가 지정한 저장소와 공개 범위를 따른다.

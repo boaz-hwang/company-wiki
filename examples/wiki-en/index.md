@@ -1,11 +1,11 @@
 ---
 wiki_format: "2"
-generated: { by: process:build_index.py, at: 2026-10-24T14:34:52Z }
+generated: { by: process:company-wiki-index, at: 2026-10-25T13:23:35Z }
 ---
 
 # Fictional Store Wiki
 
-조직이 현재 채택한 지식 2개. 이 파일은 `scripts/build_index.py`가 생성한다. 질문으로 찾고, 없으면 폴더별 목록에서 별칭과 관계를 따라간다. 규칙은 [[SCHEMA]].
+조직이 현재 채택한 지식 2개. 이 파일은 `company-wiki index`가 생성한다. 질문으로 찾고, 없으면 폴더별 목록에서 별칭과 관계를 따라간다. 규칙은 [[SCHEMA]].
 
 ## 질문으로 찾기
 

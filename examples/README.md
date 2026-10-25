@@ -30,8 +30,8 @@ The expected answer is 14 days and 30 days, the exception condition, and a citat
 | [`wiki-en/concepts/change-of-mind-return.md`](wiki-en/concepts/change-of-mind-return.md) | Concept the policy applies to, linked with a typed `applies_to` relation and its evidence |
 | [`wiki-en/index.md`](wiki-en/index.md) | Generated entry point: questions → pages, pages by folder with owner, aliases and relations, relation table |
 | [`wiki-en/SCHEMA.md`](wiki-en/SCHEMA.md) | Rules copied by setup |
-| [`wiki-en/.verification/registry.json`](wiki-en/.verification/registry.json) | Hash of each cited line at adoption time. If `returns.md` changes, lint and `registry.py` flag the pages that cite it |
-| [`wiki-en-workspace/reviews/2026-10-08-policy-change/`](wiki-en-workspace/reviews/2026-10-08-policy-change/) | Pending change proposal for `policy-change.md`, prepared with `review.py prepare` |
+| [`wiki-en/.verification/registry.json`](wiki-en/.verification/registry.json) | Hash of each cited line at adoption time. If `returns.md` changes, lint and `company-wiki registry` flag the pages that cite it |
+| [`wiki-en-workspace/reviews/2026-10-08-policy-change/`](wiki-en-workspace/reviews/2026-10-08-policy-change/) | Pending change proposal for `policy-change.md`, prepared with `company-wiki review prepare` |
 
 Inside the proposal, `working/policy-change/card.json` has the judgments (fact, scope, relationship) and `topics/policy-change/r0001/review.md` is the frozen version with its diff. The agent would ask one question, for example:
 
@@ -42,7 +42,7 @@ There is no `decisions.jsonl` or `applied.jsonl` here, because a decision must q
 To check the example yourself, from the repository root:
 
 ```bash
-WIKI_CONFIG=examples/wiki-en.toml python3 -B scripts/lint.py
-WIKI_CONFIG=examples/wiki-en.toml python3 -B scripts/registry.py --all
-WIKI_CONFIG=examples/wiki-en.toml python3 -B scripts/review.py preview 2026-10-08-policy-change policy-change
+WIKI_CONFIG=examples/wiki-en.toml company-wiki lint
+WIKI_CONFIG=examples/wiki-en.toml company-wiki registry --all
+WIKI_CONFIG=examples/wiki-en.toml company-wiki review preview 2026-10-08-policy-change policy-change
 ```

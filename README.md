@@ -10,7 +10,7 @@
 
 ---
 
-Claude Code or Codex reads your docs and AI session records, finds the knowledge your organization has actually adopted, and writes it as linked Markdown. Every rule and fact carries a `^[file:line]` citation next to it. The page owner approves each change, Git keeps the history, and Python tools check fields, links, relations, citations, and whether the cited source lines have changed since adoption.
+Claude Code or Codex reads your docs and AI session records, finds the knowledge your organization has actually adopted, and writes it as linked Markdown. Every rule and fact carries a `^[file:line]` citation next to it. The page owner approves each change, Git keeps the history, and the `company-wiki` CLI checks fields, links, relations, citations, and whether the cited source lines have changed since adoption.
 
 Company Wiki is a restructured fork of [BOAZ Wiki](https://github.com/boaz-hwang/boaz-wiki). BOAZ Wiki also keeps source summaries, overviews, open questions, research notes, and review records inside the wiki. Company Wiki narrows the wiki to adopted knowledge and moves everything else out.
 
@@ -72,32 +72,40 @@ Required: `type`, `title`, `description`, `owner`, `sources`. Relation types: `p
 
 ## Getting started
 
-You need Python 3.11 or later, Git, and Claude Code or Codex with access to your local files. No packages beyond Python itself. Runs on macOS, Linux, and Windows PowerShell. Obsidian is optional.
+You need Git and Claude Code or Codex with access to your local files. Runs on macOS, Linux, and Windows. Obsidian is optional.
+
+Install the `company-wiki` binary. It is a single file with no runtime to install:
 
 ```bash
-git clone https://github.com/boaz-hwang/company-wiki.git
-cd company-wiki
+curl -fsSL https://raw.githubusercontent.com/boaz-hwang/company-wiki/main/install.sh | sh          # macOS, Linux
 ```
 
-To set up a workspace yourself, run setup in a terminal. It shows a checklist of source kinds: move with ↑↓, toggle with space, confirm with enter, then type each path. Paths that do not exist are rejected.
-
-```bash
-WIKI_CONFIG=/path/to/workspace/wiki.toml python3 -B scripts/setup.py
+```powershell
+irm https://raw.githubusercontent.com/boaz-hwang/company-wiki/main/install.ps1 | iex              # Windows PowerShell
 ```
 
-Agents cannot answer terminal prompts, so they ask you which sources and paths to register and pass them as options (`python3 -B scripts/setup.py --list-kinds` shows the kinds). Run with `--source` again later to add sources to an existing config.
+The script downloads the release for your OS and CPU from [GitHub Releases](https://github.com/boaz-hwang/company-wiki/releases) into `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\company-wiki`, added to your user PATH). Check with `company-wiki version`. To build from source instead: `go install github.com/boaz-hwang/company-wiki/cmd/company-wiki@latest`.
+
+To set up a workspace yourself, run setup in a terminal inside the workspace folder. It shows a checklist of source kinds: move with ↑↓, toggle with space, confirm with enter, then type each path. Paths that do not exist are rejected.
 
 ```bash
-python3 -B scripts/setup.py --source documents=../docs --source slack=../exports/slack \
+cd /path/to/workspace && company-wiki setup
+```
+
+Agents cannot answer terminal prompts, so they ask you which sources and paths to register and pass them as options (`company-wiki setup --list-kinds` shows the kinds). Run with `--source` again later to add sources to an existing config.
+
+```bash
+company-wiki setup --source documents=../docs --source slack=../exports/slack \
   --source code:server=../server --source claude=~/.claude/projects/-path-to-project
 ```
 
-Or open this folder in your coding agent, fill in the brackets, and paste:
+Or open the workspace folder in your coding agent, fill in the brackets, and paste:
 
 ```text
 I want to build an LLM wiki of the knowledge [organization or team] has adopted.
 
-Follow this repository's README, AGENTS, SCHEMA, and skills.
+Follow the company-wiki README (https://github.com/boaz-hwang/company-wiki) and the
+SCHEMA and skills that `company-wiki setup` installs.
 
 - Docs and project paths: [...]
 - Slack, Jira, Notion, Confluence: [export folders and spaces/projects in scope, or none]
@@ -114,24 +122,24 @@ separately instead of putting them in the wiki.
 
 Record what you investigated and what remains unverified, and show me the
 proposed changes and the decisions I need to make, all at once. Apply them
-through PRs (or review.py if I approve here), and set things up so I can update,
+through PRs (or company-wiki review if I approve here), and set things up so I can update,
 review, and query the wiki with this repository's skills.
 ```
 
 ## Approving changes
 
-- **Git PR (default):** draft in the workspace → on the branch, `python3 -B scripts/registry.py record` updates `.verification/registry.json` → PR to the wiki repository → owner approves → merge. Owners may also edit their own pages directly in Obsidian; they still run lint and `record <page>` and commit. Copy [templates/wiki-pr-check.yml](templates/wiki-pr-check.yml) into the wiki repository to run lint on every PR.
-- **In-session (`review.py`):** `prepare → preview → decide → apply`. The decision must quote a real user message from a Claude Code or Codex session. Versions, decisions, and receipts stay in the workspace; apply writes only the approved pages and the index, and updates the registry. See [workflow.md](skills/wiki-review/references/workflow.md).
+- **Git PR (default):** draft in the workspace → on the branch, `company-wiki registry record` updates `.verification/registry.json` → PR to the wiki repository → owner approves → merge. Owners may also edit their own pages directly in Obsidian; they still run lint and `record <page>` and commit. Copy [templates/wiki-pr-check.yml](templates/wiki-pr-check.yml) into the wiki repository to run lint on every PR.
+- **In-session (`company-wiki review`):** `prepare → preview → decide → apply`. The decision must quote a real user message from a Claude Code or Codex session. Versions, decisions, and receipts stay in the workspace; apply writes only the approved pages and the index, and updates the registry. See [workflow.md](skills/wiki-review/references/workflow.md).
 
 ## Source change detection
 
 Inspired by [Toss's typed, evidence-backed context relations](https://toss.tech/article/llm_context_topic), each cited line range is hashed when it is adopted. The wiki keeps no copies of originals.
 
 ```bash
-python3 -B scripts/registry.py                         # cited lines that changed, moved, expired, or are unrecorded, plus affected pages
-python3 -B scripts/registry.py --source /documents/x.md # which pages depend on this source
-python3 -B scripts/registry.py --page concepts/x        # which pages are affected if this page changes
-python3 -B scripts/registry.py record concepts/x       # re-record after you re-checked a page
+company-wiki registry                         # cited lines that changed, moved, expired, or are unrecorded, plus affected pages
+company-wiki registry --source /documents/x.md # which pages depend on this source
+company-wiki registry --page concepts/x        # which pages are affected if this page changes
+company-wiki registry record concepts/x       # re-record after you re-checked a page
 ```
 
 `changed` means re-check the sentences and relations that cite those lines. `moved` means the content is the same but sits on other lines; fix the line numbers. Affected pages are found by following `depends_on`, `implements`, and `applies_to` relations backwards, transitively. `expired` means a session file was cleaned up (Claude Code keeps sessions for `cleanupPeriodDays`), so the evidence can no longer be re-checked; raise the retention or cite a result document instead. lint reports these as warnings; a missing document is an error.
@@ -147,7 +155,7 @@ The agent detects problems, tells the owner, and proposes fixes; it never invali
 | Review, revise, apply | "Apply proposals 1 and 2, and revise 3 with this wording." | [wiki-review](skills/wiki-review/SKILL.md) |
 | Answers with evidence | "Based on the wiki, what is our code review rule?" | [wiki-query](skills/wiki-query/SKILL.md) |
 
-Setup installs the 4 skills into the project's `.claude/skills/` and `.agents/skills/` (copies on Windows, symlinks elsewhere) and keeps skills you edited.
+Setup copies the 4 skills bundled in the binary into the project's `.claude/skills/` and `.agents/skills/`. Running it again after an upgrade refreshes those copies and keeps skills you edited.
 
 ## Configuration
 
@@ -160,18 +168,18 @@ Setup writes `wiki.toml` with the sources you selected; [wiki.example.toml](wiki
 - **Memory, Git, other agents:** read as leads to originals and user statements.
 - **Source scope:** include/exclude are instructions for the agent, not a sandbox.
 
-The Python tools do not call an LLM. A passing check does not prove the content is right; the owner's approval does that. Local `wiki.toml`, `llm-wiki/`, and `.llm-wiki/` are git-ignored in this tool repository. Keep your wiki in its own repository and decide its visibility first.
+The CLI does not call an LLM. A passing check does not prove the content is right; the owner's approval does that. Local `wiki.toml`, `llm-wiki/`, and `.llm-wiki/` are git-ignored in this tool repository. Keep your wiki in its own repository and decide its visibility first.
 
-On Windows PowerShell, run the `python3` commands as `python` (or `py -3`) and write Windows paths in `wiki.toml` with single quotes.
+Commands find `wiki.toml` from the current folder upward; `WIKI_CONFIG=/path/to/wiki.toml` selects another. On Windows, write paths in `wiki.toml` with single quotes.
 
 ## Example and checks
 
 The [fictional returns policy example](examples/README.md) has a policy, a concept, a typed relation, a registry, and a pending change proposal.
 
 ```bash
-python3 -B -m unittest discover -s scripts -p 'test_*.py'
-python3 -B scripts/lint.py
-python3 -B scripts/registry.py
+WIKI_CONFIG=examples/wiki-en.toml company-wiki lint
+WIKI_CONFIG=examples/wiki-en.toml company-wiki registry
+go test ./...      # tool development
 ```
 
 ## License

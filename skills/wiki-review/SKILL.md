@@ -1,15 +1,15 @@
 ---
 name: wiki-review
-description: 위키 변경안의 근거·의미·범위를 검토해 담당자가 판단할 핵심 질문 목록을 제시하고, 결정에 따라 Git PR 또는 review.py로 반영한다. 위키 점검, 변경안 검토, 컨펌, 승인 반영과 검토 재개에 사용한다.
+description: 위키 변경안의 근거·의미·범위를 검토해 담당자가 판단할 핵심 질문 목록을 제시하고, 결정에 따라 Git PR 또는 company-wiki review로 반영한다. 위키 점검, 변경안 검토, 컨펌, 승인 반영과 검토 재개에 사용한다.
 ---
 
 # wiki-review
 
-SCHEMA.md와 [실행 형식](references/workflow.md)이 공통 계약이다. 입력은 변경 초안·사용자 응답 또는 기존 위키 점검 요청이다. 전체 원천 조사는 update, 원천 기반 초안은 ingest, 답변과 파일링 초안은 query가 맡는다. 구조 검사는 `lint.py` 코드가 수행한다.
+SCHEMA.md와 [실행 형식](references/workflow.md)이 공통 계약이다. 입력은 변경 초안·사용자 응답 또는 기존 위키 점검 요청이다. 전체 원천 조사는 update, 원천 기반 초안은 ingest, 답변과 파일링 초안은 query가 맡는다. 구조 검사는 `company-wiki lint`가 수행한다.
 
 wiki.toml에서 위키 위치(wiki.path)·작업 공간(wiki.state)·원천·검토자를 확인하고, 해당 위키의 SCHEMA.md를 기준으로 작업한다. 경로 예시의 llm-wiki·.llm-wiki는 설정값으로 바꾼다.
 
-반영 경로는 둘이다. 위키가 Git 저장소이고 PR 리뷰를 쓰면 **브랜치 → `registry.py record`로 .verification/registry.json 갱신 → PR → 담당자(owner) 승인 → 병합**이 기본이다. 세션 안에서 사용자가 직접 승인하면 review.py의 **prepare → preview → decide → apply**를 쓴다. 어느 쪽이든 검토 기록은 작업 공간에 두고 위키에 넣지 않는다.
+반영 경로는 둘이다. 위키가 Git 저장소이고 PR 리뷰를 쓰면 **브랜치 → `company-wiki registry record`로 .verification/registry.json 갱신 → PR → 담당자(owner) 승인 → 병합**이 기본이다. 세션 안에서 사용자가 직접 승인하면 `company-wiki review`의 **prepare → preview → decide → apply**를 쓴다. 어느 쪽이든 검토 기록은 작업 공간에 두고 위키에 넣지 않는다.
 
 ## 출력 계약
 
@@ -26,9 +26,9 @@ wiki.toml에서 위키 위치(wiki.path)·작업 공간(wiki.state)·원천·검
 
 ## 1. 검토 가능한 버전 준비
 
-`review.py status`로 기존 제안·승인을 확인한다. 같은 페이지를 바꾸는 주제는 묶고 기존 검증 이력을 보존한다. prepare로 전후·근거를 고정한 뒤 preview로 실제 합본을 검사한다. 오류를 해결하지 못한 항목은 반영하지 않고 원인과 미확인 범위를 보고한다.
+`company-wiki review status`로 기존 제안·승인을 확인한다. 같은 페이지를 바꾸는 주제는 묶고 기존 검증 이력을 보존한다. prepare로 전후·근거를 고정한 뒤 preview로 실제 합본을 검사한다. 오류를 해결하지 못한 항목은 반영하지 않고 원인과 미확인 범위를 보고한다.
 
-preview와 apply는 `lint.py`를 자동 실행한다. 구조 오류는 원문·이동 경로를 확인해 초안에서 고치며, 대상을 임의 생성하거나 링크를 지워 검사만 통과시키지 않는다. 경고는 판단 신호다. 경고를 없애려고 인용 번호나 해시를 고치지 않는다. moved는 같은 내용이 새 줄에 있는지 확인한 뒤 번호를 고치고, changed는 원문을 다시 읽어 문장·관계를 재검토한다.
+preview와 apply는 lint를 자동 실행한다. 구조 오류는 원문·이동 경로를 확인해 초안에서 고치며, 대상을 임의 생성하거나 링크를 지워 검사만 통과시키지 않는다. 경고는 판단 신호다. 경고를 없애려고 인용 번호나 해시를 고치지 않는다. moved는 같은 내용이 새 줄에 있는지 확인한 뒤 번호를 고치고, changed는 원문을 다시 읽어 문장·관계를 재검토한다.
 
 구조 검사를 통과한 합본에서 다음을 의미 검토한다. 상세 판단 기준은 SCHEMA.md를 따른다.
 
@@ -38,7 +38,7 @@ preview와 apply는 `lint.py`를 자동 실행한다. 구조 오류는 원문·�
 - 주장 차이가 동일 대상·시점·조건에서 충돌하는가, 시점·범위·명칭 차이인가?
 - 기존 검증 이력과 관계의 방향·적용 범위, 사용자 제한 조건을 유지했는가?
 
-기존 위키 점검 요청이면 먼저 `python3 -B scripts/lint.py`와 `python3 -B scripts/registry.py`를 실행하고, changed·moved·expired·missing 인용과 관계로 영향받는 페이지, 지정 범위 페이지의 근거를 대조한다. 발견한 문제를 수정 초안으로 만들어 해당 담당자(owner)에게 판단 질문으로 올린다. SCHEMA 7절에 따라 점검 결과만으로 정식 페이지를 수정하거나 무효로 표시하지 않는다.
+기존 위키 점검 요청이면 먼저 `company-wiki lint`와 `company-wiki registry`를 실행하고, changed·moved·expired·missing 인용과 관계로 영향받는 페이지, 지정 범위 페이지의 근거를 대조한다. 발견한 문제를 수정 초안으로 만들어 해당 담당자(owner)에게 판단 질문으로 올린다. SCHEMA 7절에 따라 점검 결과만으로 정식 페이지를 수정하거나 무효로 표시하지 않는다.
 
 현재/제안 표현·근거·해석·추천 이유·적용 범위와 diff를 검토 파일에 준비한 뒤, 출력 계약에 따라 질문 목록을 만든다. 주제별 카드는 내부 버전 단위이며 질문을 순차 발송하라는 뜻이 아니다.
 
@@ -50,10 +50,10 @@ PR 경로에서는 담당자의 PR 승인이 결정이다. 세션 경로에서�
 
 ## 3. 승인 범위 반영과 검증
 
-PR 경로에서는 PR 브랜치에서 `python3 -B scripts/registry.py record`로 새 인용의 해시를 기록하고, 원문 변경을 재검토한 페이지는 `registry.py record <페이지>`로 갱신해 .verification/registry.json 변경을 같은 PR에 넣는다. 승인된 변경만 병합한다.
+PR 경로에서는 PR 브랜치에서 `company-wiki registry record`로 새 인용의 해시를 기록하고, 원문 변경을 재검토한 페이지는 `company-wiki registry record <페이지>`로 갱신해 .verification/registry.json 변경을 같은 PR에 넣는다. 승인된 변경만 병합한다.
 
 세션 경로에서는 apply 직전에 카드와 사용자 제한 조건을 대조하고 승인된 주제만 지정한다. 부분 승인으로 연결이 깨지면 필요한 의존 관계를 해결한다. 기준 문서가 바뀌면 해당 주제만 다시 준비한다. 중단 journal은 recover하되 다른 편집을 덮어쓰지 않는다.
 
 apply의 구조 검사와 별도로 **인용이 주장을 지지하는가, 사용자 판단이 정확히 옮겨졌는가, 범위 밖 해석·연결이 들어갔는가**를 확인한다. 승인 근거 지원은 현재 Claude·Codex 사용자 메시지에 한정되며 다른 원천은 지원을 확인하기 전 우회 인용하지 않는다.
 
-`python3 -B scripts/lint.py`와 status·applied.jsonl을 확인하고 사용자가 지정한 저장소와 공개 범위에서 관련 변경만 커밋·푸시한다. 반영 파일·검사 실패/미검증·남은 판단을 보고한다. 전체 조사 경계 갱신은 update의 inventory 계약을 따르며 apply 완료와 혼동하지 않는다.
+`company-wiki lint`와 status·applied.jsonl을 확인하고 사용자가 지정한 저장소와 공개 범위에서 관련 변경만 커밋·푸시한다. 반영 파일·검사 실패/미검증·남은 판단을 보고한다. 전체 조사 경계 갱신은 update의 inventory 계약을 따르며 apply 완료와 혼동하지 않는다.

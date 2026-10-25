@@ -10,7 +10,7 @@ wiki.toml의 활성 sources마다 path·kind·include/exclude·project 범위를
 
 Claude는 선택한 프로젝트 디렉터리, Codex는 session_meta의 cwd·세션 관계를 확인한다. 파일 생성일보다 메시지 시각으로 기간을 나누며 결정 전후 문맥과 최종 정정을 읽는다. 모델·도구·하위 에이전트 보고를 사용자 결정으로 세지 않는다.
 
-`python3 -B scripts/dump_session.py <별칭 또는 경로> --start N --end M`로 역할과 원본 JSONL 줄을 확인한다. 탐색용 --max-chars를 사용했더라도 인용할 줄은 생략 없이 재확인한다. Codex event_msg와 response_item의 중복을 주의한다.
+`company-wiki session <별칭 또는 경로> --start N --end M`로 역할과 원본 JSONL 줄을 확인한다. 탐색용 --max-chars를 사용했더라도 인용할 줄은 생략 없이 재확인한다. Codex event_msg와 response_item의 중복을 주의한다.
 
 Hermes 등 다른 형식은 실제 저장 위치·스키마를 확인해 읽기 전용으로 조사한다. SQLite라면 읽기 전용 연결을 사용한다. 현재 검증 도구가 지원하지 않는 세션은 원본 ID와 한계를 보고하고 결과 문서를 우선 인용한다. 가짜 세션 별칭이나 승인 인용을 만들지 않는다.
 

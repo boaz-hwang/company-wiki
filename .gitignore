@@ -1,7 +1,5 @@
-__pycache__/
-*.pyc
-.venv/
 .DS_Store
+/dist/
 wiki.toml
 /llm-wiki/
 /.llm-wiki/

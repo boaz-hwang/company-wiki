@@ -7,34 +7,40 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ['3.11', '3.13']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-go@v5
         with:
-          python-version: ${{ matrix.python }}
-      - run: python -B -m unittest discover -s scripts -p 'test_*.py'
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - name: Example wiki checks with the built binary
+        shell: bash
+        run: |
+          go build -o company-wiki ./cmd/company-wiki
+          WIKI_CONFIG=examples/wiki-en.toml ./company-wiki lint
+          WIKI_CONFIG=examples/wiki-en.toml ./company-wiki registry
+          WIKI_CONFIG=examples/wiki-en.toml ./company-wiki review status
       - name: Windows PowerShell workspace smoke test
         if: runner.os == 'Windows'
         shell: powershell
         run: |
+          go build -o company-wiki.exe ./cmd/company-wiki
+          $exe = (Resolve-Path .\company-wiki.exe).Path
           $workspace = Join-Path $env:RUNNER_TEMP ('wiki-' + [guid]::NewGuid())
-          New-Item -ItemType Directory -Path $workspace | Out-Null
-          $env:WIKI_CONFIG = Join-Path $workspace 'wiki.toml'
+          New-Item -ItemType Directory -Path (Join-Path $workspace 'docs') -Force | Out-Null
+          Push-Location $workspace
           try {
-            # Windows PowerShell 5.1 writes a UTF-8 BOM with this option.
-            @('[wiki]', 'path = "llm-wiki"', 'state = ".llm-wiki"', 'title = "PowerShell Wiki"') |
-              Set-Content -Path $env:WIKI_CONFIG -Encoding UTF8
-            python -B scripts/setup.py
+            & $exe setup --source documents=docs
             if ($LASTEXITCODE -ne 0) { throw 'setup failed' }
-            python -B scripts/lint.py
+            & $exe lint
             if ($LASTEXITCODE -ne 0) { throw 'lint failed' }
-            python -B scripts/review.py status
+            & $exe review status
             if ($LASTEXITCODE -ne 0) { throw 'status failed' }
-            python -B scripts/registry.py
+            & $exe registry
             if ($LASTEXITCODE -ne 0) { throw 'registry failed' }
           } finally {
-            Remove-Item Env:WIKI_CONFIG
+            Pop-Location
             Remove-Item -LiteralPath $workspace -Recurse -Force
           }

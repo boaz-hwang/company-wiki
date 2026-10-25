@@ -3,7 +3,6 @@
 # and that cited files and line ranges exist. With .verification/registry.json committed, it also warns
 # about changed or moved cited lines. Sources outside the wiki repository must be
 # reachable from the runner (for example a docs folder in the same repository) or lint reports them.
-# If the company-wiki tool repository is private, add `token:` with read access to the second checkout.
 name: Wiki check
 on: [pull_request]
 permissions:
@@ -13,13 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: boaz-hwang/company-wiki
-          path: .company-wiki
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - run: python -B .company-wiki/scripts/lint.py
+      - run: curl -fsSL https://raw.githubusercontent.com/boaz-hwang/company-wiki/main/install.sh | sh
+      - run: ~/.local/bin/company-wiki lint
         env:
           WIKI_CONFIG: ${{ github.workspace }}/wiki.toml

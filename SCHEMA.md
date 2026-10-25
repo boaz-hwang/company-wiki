@@ -52,9 +52,9 @@ related는 슬러그만 써도 되고, 관계 종류와 근거가 중요하면 t
 
 ## 4. 변경과 승인
 
-기본 경로는 **작업 공간에서 초안 → Git PR → 담당자(owner) 승인 → 기본 브랜치 병합**이다. PR 브랜치에서 `python3 -B scripts/registry.py record`로 새 인용의 해시를 기록해 .verification/registry.json 변경을 같은 PR에 넣고, PR에서 lint를 실행한다.
+기본 경로는 **작업 공간에서 초안 → Git PR → 담당자(owner) 승인 → 기본 브랜치 병합**이다. PR 브랜치에서 `company-wiki registry record`로 새 인용의 해시를 기록해 .verification/registry.json 변경을 같은 PR에 넣고, PR에서 lint를 실행한다.
 
-세션 안에서 승인을 받는 경우 운영 도구 `review.py`의 **prepare → preview → decide → apply**를 쓸 수 있다. 검토 버전·사용자 결정·반영 receipt는 작업 공간 reviews/에 남고 위키에는 들어가지 않는다. 형식과 명령은 skills/wiki-review/references/workflow.md를 따른다. apply는 레지스트리를 자동 갱신한다.
+세션 안에서 승인을 받는 경우 운영 도구 `company-wiki review`의 **prepare → preview → decide → apply**를 쓸 수 있다. 검토 버전·사용자 결정·반영 receipt는 작업 공간 reviews/에 남고 위키에는 들어가지 않는다. 형식과 명령은 skills/wiki-review/references/workflow.md를 따른다. apply는 레지스트리를 자동 갱신한다.
 
 검토는 인용이 주장을 지지하는지, 일반화·계획의 성과 승격·관계 범위 확장이 없는지, 업무 데이터를 복제하지 않는지 판단한다. 사용자에게는 판단에 필요한 최소 맥락과 반영 범위를 담은 간결한 번호 질문 목록을 한 번에 제시한다. 사용자는 승인·수정·보류·제외를 결정한다. 이미 승인한 항목과 명시적 수정은 재질문하지 않는다.
 
@@ -62,20 +62,20 @@ lint는 필수 필드·폴더·링크·관계·인용 파일·줄 범위를 검�
 
 ## 5. 원문 변경 감지
 
-위키 저장소의 .verification/registry.json은 페이지별로 채택 시점의 인용 줄 해시를 기록한다. 검증 기록은 지식이 아니므로 페이지 frontmatter에 넣지 않지만, 팀과 CI가 같은 기록으로 검사하도록 위키와 함께 Git에 둔다. 점(.)으로 시작해 Obsidian 탐색기에 보이지 않는다. 원문 사본은 두지 않는다. `registry.py`가 인용별 상태를 보여준다.
+위키 저장소의 .verification/registry.json은 페이지별로 채택 시점의 인용 줄 해시를 기록한다. 검증 기록은 지식이 아니므로 페이지 frontmatter에 넣지 않지만, 팀과 CI가 같은 기록으로 검사하도록 위키와 함께 Git에 둔다. 점(.)으로 시작해 Obsidian 탐색기에 보이지 않는다. 원문 사본은 두지 않는다. `company-wiki registry`가 인용별 상태를 보여준다.
 
 - fresh: 채택 때와 같다.
 - moved: 내용은 같고 원문의 줄 위치만 바뀌었다. 인용 번호만 새 위치로 고치고 record한다.
-- changed: 원문이 바뀌었다. 그 인용에 기댄 문장·관계를 재검토하고, 확인했으면 `registry.py record <페이지>`로 갱신한다.
+- changed: 원문이 바뀌었다. 그 인용에 기댄 문장·관계를 재검토하고, 확인했으면 `company-wiki registry record <페이지>`로 갱신한다.
 - expired: 세션 원문이 보존 기간 경과로 정리됐다. 근거를 다시 확인할 수 없으므로 원문 보존 설정을 늘리거나 결과 문서를 근거로 바꾼다.
 - missing: 문서 원문이 없다. lint error다.
 - unrecorded: 해시 기록이 없다. 병합 후 record를 실행한다.
 
-`registry.py --source <경로>`는 원문 하나가 바뀌었을 때 그 원문을 인용한 페이지를 역으로 찾는다. `registry.py --page <페이지>`는 페이지 하나가 바뀌었을 때 영향받는 페이지를 찾는다. 영향은 related의 `depends_on`·`implements`·`applies_to` 관계를 거꾸로, 연쇄적으로 따라간다. 예: concept의 정의가 바뀌면 그 concept에 depends_on으로 기대는 policy, 그 policy를 implements하는 entity까지 재검토 대상이다. 타입 없는 related와 그 밖의 관계는 탐색용이며 영향 계산에 넣지 않는다. 기본 조회도 재검토가 필요한 인용의 페이지에서 출발한 영향 페이지를 함께 보여준다.
+`company-wiki registry --source <경로>`는 원문 하나가 바뀌었을 때 그 원문을 인용한 페이지를 역으로 찾는다. `company-wiki registry --page <페이지>`는 페이지 하나가 바뀌었을 때 영향받는 페이지를 찾는다. 영향은 related의 `depends_on`·`implements`·`applies_to` 관계를 거꾸로, 연쇄적으로 따라간다. 예: concept의 정의가 바뀌면 그 concept에 depends_on으로 기대는 policy, 그 policy를 implements하는 entity까지 재검토 대상이다. 타입 없는 related와 그 밖의 관계는 탐색용이며 영향 계산에 넣지 않는다. 기본 조회도 재검토가 필요한 인용의 페이지에서 출발한 영향 페이지를 함께 보여준다.
 
 ## 6. 사람과 에이전트의 공동 편집
 
-담당자(owner)는 자기 담당 페이지를 Obsidian·IDE에서 직접 수정할 수 있다. 이때도 줄 인용을 붙이고 lint와 `registry.py record <페이지>`를 실행한 뒤 Git에 커밋한다. 담당자가 아닌 사람과 에이전트의 개인 작업·초안·조사는 작업 공간에서 하고 PR이나 review로 제안한다. 에이전트는 작업 시작 때 최신 편집을 다시 읽고 근거와 대조한다. prepare 이후 정본이 바뀌면 그 주제를 최신 본문에서 재준비하고 담당자 편집을 덮어쓰지 않는다. 작업 공간은 점(.)으로 시작하는 폴더라 Obsidian 탐색기에 보이지 않는다.
+담당자(owner)는 자기 담당 페이지를 Obsidian·IDE에서 직접 수정할 수 있다. 이때도 줄 인용을 붙이고 lint와 `company-wiki registry record <페이지>`를 실행한 뒤 Git에 커밋한다. 담당자가 아닌 사람과 에이전트의 개인 작업·초안·조사는 작업 공간에서 하고 PR이나 review로 제안한다. 에이전트는 작업 시작 때 최신 편집을 다시 읽고 근거와 대조한다. prepare 이후 정본이 바뀌면 그 주제를 최신 본문에서 재준비하고 담당자 편집을 덮어쓰지 않는다. 작업 공간은 점(.)으로 시작하는 폴더라 Obsidian 탐색기에 보이지 않는다.
 
 ## 7. 검증과 변경 권한
 
