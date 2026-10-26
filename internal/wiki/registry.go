@@ -16,8 +16,8 @@ import (
 const RegistryHelp = `원천 레지스트리. 인용별 최신성과 원문 → 의존 페이지 역조회를 보여준다.
 
 레지스트리(위키 저장소의 .verification/registry.json)는 페이지별로 채택 시점의 인용 줄 해시를 기록한다.
-원문 사본은 두지 않는다. review apply 가 자동 기록하고, Git PR 경로에서는 PR 브랜치에서 record 를 실행해
-레지스트리 변경을 같은 PR에 넣는다.
+원문 사본은 두지 않는다. review apply 가 자동 기록하고, 담당자가 페이지를 직접 고쳤으면 커밋 전에
+record <페이지> 를 실행해 레지스트리 변경을 같은 커밋에 넣는다.
 
   company-wiki registry [--source /별칭/파일.md] [--all] [--json]   조회 (읽기 전용)
   company-wiki registry --page concepts/x                         이 페이지가 바뀌면 영향받는 페이지

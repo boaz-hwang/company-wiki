@@ -121,15 +121,20 @@ pages. Report open questions, research in progress, and unadopted claims
 separately instead of putting them in the wiki.
 
 Record what you investigated and what remains unverified, and show me the
-proposed changes and the decisions I need to make, all at once. Apply them
-through PRs (or company-wiki review if I approve here), and set things up so I can update,
-review, and query the wiki with this repository's skills.
+proposed changes and the decisions I need to make, all at once. Apply what I
+approve with company-wiki review and commit it to the wiki repository's main (no
+PRs), and set things up so I can update, review, and query the wiki with this
+repository's skills.
 ```
 
 ## Approving changes
 
-- **Git PR (default):** draft in the workspace → on the branch, `company-wiki registry record` updates `.verification/registry.json` → PR to the wiki repository → owner approves → merge. Owners may also edit their own pages directly in Obsidian; they still run lint and `record <page>` and commit. Copy [templates/wiki-check.yml](templates/wiki-check.yml) into the wiki repository to run `company-wiki lint --wiki-only` on every push to main; it checks structure without the sources, which are not on the runner.
-- **In-session (`company-wiki review`):** `prepare → preview → decide → apply`. The decision must quote a real user message from a Claude Code or Codex session. Versions, decisions, and receipts stay in the workspace; apply writes only the approved pages and the index, and updates the registry. See [workflow.md](skills/wiki-review/references/workflow.md).
+Changes go straight to the wiki repository's main branch; there are no PRs or branches.
+
+- **Agent proposals (`company-wiki review`):** draft in the workspace → `prepare → preview` → the owner answers in the session → `decide → apply` → commit and push to main. The decision must quote a real user message from a Claude Code or Codex session. Versions, decisions, and receipts stay in the workspace; apply runs lint, writes only the approved pages and the index, and updates the registry. See [workflow.md](skills/wiki-review/references/workflow.md).
+- **Owner edits:** owners may edit their own pages directly in Obsidian or an IDE: lint → `company-wiki registry record <page>` → commit and push to main.
+
+Copy [templates/wiki-check.yml](templates/wiki-check.yml) into the wiki repository to run `company-wiki lint --wiki-only` on every push to main; it checks structure without the sources, which are not on the runner. It detects problems after a push; checking before a change lands is the job of apply's lint and the owner's lint.
 
 ## Source change detection
 

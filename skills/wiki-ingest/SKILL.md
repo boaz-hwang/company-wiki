@@ -1,6 +1,6 @@
 ---
 name: wiki-ingest
-description: 지정된 문서·코드·Slack·Jira·Notion·Confluence·에이전트 세션에서 조직이 채택한 지식을 찾아 concepts·entities·policies 변경안으로 만든다. 위키에 넣어줘, ingest 요청에 사용하며 정식 반영은 담당자 승인 후 PR 또는 wiki-review로 수행한다.
+description: 지정된 문서·코드·Slack·Jira·Notion·Confluence·에이전트 세션에서 조직이 채택한 지식을 찾아 concepts·entities·policies 변경안으로 만든다. 위키에 넣어줘, ingest 요청에 사용하며 정식 반영은 wiki-review로 담당자 결정을 받아 수행한다.
 ---
 
 # wiki-ingest

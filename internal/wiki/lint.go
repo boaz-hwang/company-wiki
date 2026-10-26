@@ -183,7 +183,7 @@ func Lint(c *Config, out io.Writer) int {
 			case "changed":
 				warns = append(warns, fmt.Sprintf("%s: 원문 변경 `%s`. 이 인용에 기댄 문장·관계를 재검토", rel, ks.key))
 			case "unrecorded":
-				infos = append(infos, fmt.Sprintf("%s: 해시 기록 없는 인용 `%s`. 병합 전 company-wiki registry record", rel, ks.key))
+				infos = append(infos, fmt.Sprintf("%s: 해시 기록 없는 인용 `%s`. 커밋 전 company-wiki registry record", rel, ks.key))
 			}
 		}
 		if placeholderRE.MatchString(body) {

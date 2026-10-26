@@ -15,8 +15,9 @@ import (
 
 // Review keeps versioned wiki proposals, human decisions and checked publication.
 //
-// It is the optional in-session path. The default approval path is a Git pull request approved by
-// the page owner. Review records live in the workspace (wiki.state), never inside the wiki.
+// It is the approval path for agent proposals: the owner answers in the session, decide records that
+// answer and apply writes the approved version, which is then committed to the wiki repository's main.
+// Review records live in the workspace (wiki.state), never inside the wiki.
 type Review struct {
 	cfg                     *Config
 	wiki, repo, state, root string

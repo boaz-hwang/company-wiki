@@ -120,14 +120,18 @@ concepts, entities, policies에 넣고 규칙과 사실마다 원문 줄 인용�
 채택하지 않은 주장은 위키에 넣지 말고 따로 보고해줘.
 
 조사 범위와 미확인을 기록하고, 변경안과 내가 판단할 내용을 한 번에 보여줘.
-PR로 반영하고(여기서 승인하면 company-wiki review로), 이후 이 저장소의 스킬로
-업데이트·검토·조회할 수 있게 설정해줘.
+내가 승인한 것만 company-wiki review로 반영해 위키 저장소 main에 커밋하고(PR 없이),
+이후 이 저장소의 스킬로 업데이트·검토·조회할 수 있게 설정해줘.
 ```
 
 ## 변경 승인
 
-- **Git PR (기본):** 작업 공간에서 초안 → 브랜치에서 `company-wiki registry record`로 `.verification/registry.json` 갱신 → 위키 저장소에 PR → 담당자 승인 → 병합. 담당자는 자기 페이지를 Obsidian에서 직접 고칠 수도 있으며, 이때도 lint와 `record <페이지>`를 실행하고 커밋합니다. main에 push할 때마다 `company-wiki lint --wiki-only`를 돌리려면 [templates/wiki-check.yml](templates/wiki-check.yml)을 위키 저장소에 복사합니다. 원문이 없는 러너에서 구조만 검사합니다.
-- **세션 안 승인 (`company-wiki review`):** `prepare → preview → decide → apply`. 결정은 Claude Code·Codex 세션의 실제 사용자 메시지를 인용해야 합니다. 버전·결정·receipt는 작업 공간에 남고, apply는 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
+변경은 위키 저장소의 main 브랜치에 바로 커밋합니다. PR·브랜치는 쓰지 않습니다.
+
+- **에이전트 제안 (`company-wiki review`):** 작업 공간에서 초안 → `prepare → preview` → 담당자가 세션에서 답변 → `decide → apply` → main에 커밋·푸시. 결정은 Claude Code·Codex 세션의 실제 사용자 메시지를 인용해야 합니다. 버전·결정·receipt는 작업 공간에 남고, apply는 lint를 통과한 뒤 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
+- **담당자 직접 편집:** 담당자는 자기 페이지를 Obsidian·IDE에서 직접 고칠 수 있습니다. lint → `company-wiki registry record <페이지>` → main에 커밋·푸시.
+
+main에 push할 때마다 `company-wiki lint --wiki-only`를 돌리려면 [templates/wiki-check.yml](templates/wiki-check.yml)을 위키 저장소에 복사합니다. 원문이 없는 러너에서 구조만 검사합니다. push 뒤의 감지 장치이며, 반영 전 검사는 apply의 lint와 담당자의 lint가 맡습니다.
 
 ## 원문 변경 감지
 

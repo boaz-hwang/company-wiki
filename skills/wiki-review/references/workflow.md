@@ -2,23 +2,31 @@
 
 `company-wiki` CLI로 실행한다. 명령은 현재 폴더부터 위로 wiki.toml을 찾고, WIKI_CONFIG로 다른 설정을 지정할 수 있다. 규칙은 `SCHEMA.md`의 변경과 승인 절이다. `llm-wiki`(위키)와 `.llm-wiki`(작업 공간)는 기본값이며 실제 경로와 검토자는 wiki.toml을 따른다.
 
-## Git PR 경로 (기본)
+## 반영 경로 (main 직접 커밋)
+
+PR·브랜치는 쓰지 않고 위키 저장소의 main에 직접 커밋·푸시한다. 채택 승인은 Git 병합이 아니라 담당자의 decide 기록이다.
+
+- 에이전트 제안(기본): 작업 공간 초안 → prepare → preview → 담당자가 세션에서 답변 → decide → apply → main 커밋·푸시. 아래 검토 도구 절차를 따른다.
+- 담당자 직접 편집: 자기 페이지를 고친 뒤 lint → `registry record <페이지>` → main 커밋·푸시.
 
 ```bash
-git -C llm-wiki switch -c wiki/<topic>
-# 초안을 정식 경로에 쓰고
+# 에이전트 제안: apply 성공 뒤
+git -C llm-wiki add <반영 페이지> index.md .verification/registry.json
+git -C llm-wiki commit -m "<batch>/<topic>: <변경 요약>" && git -C llm-wiki push origin main
+
+# 담당자 직접 편집
 company-wiki index && company-wiki lint
-company-wiki registry record              # 새 인용 해시를 .verification/registry.json에 기록
+company-wiki registry record <바꾼 페이지>   # 재확인한 인용 해시를 .verification/registry.json에 기록
 company-wiki registry --page <바꾼 페이지>   # 함께 재검토할 의존 페이지
-git -C llm-wiki add -A && git -C llm-wiki commit -m "<변경 요약>" && gh pr create   # 본문에 판단 질문·근거·적용 범위·영향 페이지
-# 담당자(owner) 승인 후 병합
+git -C llm-wiki add <바꾼 페이지> index.md .verification/registry.json
+git -C llm-wiki commit -m "<변경 요약>" && git -C llm-wiki push origin main
 ```
 
-PR 본문에는 아래 카드의 judgments와 같은 내용(이전·제안·이유·근거)을 쓴다. 병합이 채택이며 이력은 Git이 맡는다. 원문 변경을 재검토한 페이지는 `company-wiki registry record <페이지>`로 갱신해 같은 PR에 넣는다. 담당자가 자기 페이지를 직접 고칠 때도 같은 검사와 record를 거쳐 커밋한다. 위키 저장소에서 main push마다 `company-wiki lint --wiki-only`로 구조를 검사하려면 templates/wiki-check.yml을 쓴다.
+main에 있으면 채택이며 이력은 Git이 맡는다. 판단·근거는 커밋이 아니라 작업 공간의 카드·decisions.jsonl에 남는다. 원문 변경(changed)을 재검토해 본문은 그대로 두고 해시만 갱신할 때도 담당자 확인 뒤 `registry record <페이지>`로 기록해 main에 커밋한다. 위키 저장소에서 main push마다 `company-wiki lint --wiki-only`로 구조를 검사하려면 templates/wiki-check.yml을 쓴다. push 뒤의 감지 장치이며, 반영 전 검사는 apply의 lint와 직접 편집 때의 lint가 맡는다.
 
-## 세션 경로 (company-wiki review)
+## 검토 도구 (company-wiki review)
 
-사용자가 대화에서 직접 승인하는 경우 아래 도구를 쓴다. 검토 파일은 작업 공간에 남고 위키에는 승인된 페이지·index·.verification/registry.json만 쓰인다.
+에이전트 제안은 이 도구로 담당자 결정을 받는다. 검토 파일은 작업 공간에 남고 위키에는 승인된 페이지·index·.verification/registry.json만 쓰인다.
 
 ## 파일 배치
 
@@ -134,7 +142,7 @@ company-wiki review apply batch-id topic-id
 company-wiki review status
 ```
 
-apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하고 임시 전체 lint를 통과한 뒤 반영한다. 위키에는 선택한 페이지·파생 index·.verification/registry.json(인용 줄 해시)만 쓰고, 작업 공간에는 반영 receipt(applied.jsonl)를 쓴다. 적용된 동일 버전 재실행은 추가 쓰기를 하지 않는다. 위키가 Git 저장소라면 반영 뒤 사용자가 지정한 방식으로 커밋한다.
+apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하고 임시 전체 lint를 통과한 뒤 반영한다. 위키에는 선택한 페이지·파생 index·.verification/registry.json(인용 줄 해시)만 쓰고, 작업 공간에는 반영 receipt(applied.jsonl)를 쓴다. 적용된 동일 버전 재실행은 추가 쓰기를 하지 않는다. 위키가 Git 저장소라면 반영 뒤 반영 경로대로 main에 커밋·푸시한다.
 
 기준이 바뀌면 오류가 해당 항목과 경로를 알려준다. 그 주제만 현재 문서에서 다시 준비해 차이를 검토한다. 다른 주제 승인은 재사용한다. 경고는 사람이 판단할 내용으로 보고하며 errors는 반영을 막는다. 소스·세션을 읽을 수 없으면 검사를 우회하지 말고 그 항목의 근거를 복원한다.
 
@@ -144,4 +152,4 @@ apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하�
 company-wiki review recover
 ```
 
-복구 대상에 제3의 편집 내용이 있으면 덮어쓰지 않고 중단한다. journal before/after와 현재 파일을 대조하고 사용자 작업을 보존한 뒤 재시도한다. 위키에는 변경 페이지와 index만 커밋한다. 카드·판단·receipt는 작업 공간 기록이며 사용자가 지정한 저장소와 공개 범위를 따른다.
+복구 대상에 제3의 편집 내용이 있으면 덮어쓰지 않고 중단한다. journal before/after와 현재 파일을 대조하고 사용자 작업을 보존한 뒤 재시도한다. 위키에는 변경 페이지·index·.verification/registry.json만 커밋한다. 카드·판단·receipt는 작업 공간 기록이며 사용자가 지정한 저장소와 공개 범위를 따른다.
