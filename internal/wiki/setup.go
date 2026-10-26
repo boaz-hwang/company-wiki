@@ -1,7 +1,6 @@
 package wiki
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -248,11 +247,11 @@ func askSources(x IO, base string) ([]sourceSpec, error) {
 	for i, k := range kindOrder {
 		items[i] = item{k, Kinds[k].Label}
 	}
-	kinds, err := checkbox(in, x.Stdout, "등록할 원천을 고르세요", items)
+	kinds, rest, err := checkbox(in, x.Stdout, "등록할 원천을 고르세요", items)
 	if err != nil {
 		return nil, err
 	}
-	reader := bufio.NewReader(in)
+	reader := newLineReader(rest, in, x.Stdout)
 	var specs []sourceSpec
 	for _, kind := range kinds {
 		def := defaultPath(kind, base)

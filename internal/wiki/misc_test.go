@@ -288,3 +288,67 @@ func TestInventoryDocExampleIsComplete(t *testing.T) {
 		t.Fatal(res, err)
 	}
 }
+
+func TestParseKeysSplitsChunks(t *testing.T) {
+	for _, c := range []struct {
+		chunk string
+		keys  []int
+	}{
+		{" ", []int{keySpace}},
+		{"\x1b[A", []int{keyUp}},
+		{"\x1b[B\x1b[B \r", []int{keyDown, keyDown, keySpace, keyEnter}},
+		{"j k\n", []int{keyDown, keySpace, keyUp, keyEnter}},
+		{"\r\n", []int{keyEnter}},
+		{"x\x1b[C\x1b\xec\x95\x88 q\x03", []int{keySpace, keyAbort, keyAbort}},
+		{"\x1b[", nil},
+	} {
+		keys, ends := parseKeys([]byte(c.chunk))
+		if fmtAny(keys) != fmtAny(c.keys) || len(ends) != len(keys) {
+			t.Fatalf("%q: %v", c.chunk, keys)
+		}
+	}
+	if _, ends := parseKeys([]byte("\x1b[B \r\ndocs")); fmtAny(ends) != fmtAny([]int{3, 4, 6}) {
+		t.Fatal(ends)
+	}
+}
+
+func TestRunKeysKeepsBytesAfterConfirm(t *testing.T) {
+	start := checkState{selected: map[int]bool{}, count: 4}
+	s, done, rest, err := runKeys(start, []byte(" \rdocs\r"))
+	if err != nil || !done || !s.selected[0] || len(s.selected) != 1 || string(rest) != "docs\r" {
+		t.Fatal(s, done, string(rest), err)
+	}
+	// Enter with nothing selected is ignored; the keys after it still count.
+	s, done, rest, _ = runKeys(start, []byte("\r\x1b[B \r\n"))
+	if !done || !s.selected[1] || len(rest) != 0 {
+		t.Fatal(s, done, rest)
+	}
+	if s, done, _, _ = runKeys(start, []byte("\r")); done || len(s.selected) != 0 {
+		t.Fatal("enter without selection")
+	}
+	// Split across reads, the state carries over.
+	s, done, _, _ = runKeys(start, []byte("j"))
+	if s, done, _, _ = runKeys(s, []byte(" \r")); !done || !s.selected[1] {
+		t.Fatal(s)
+	}
+	if _, _, _, err := runKeys(start, []byte(" q\r")); err != errCancelled {
+		t.Fatal("q must cancel before enter", err)
+	}
+}
+
+func TestLineReaderUsesPendingBytesFirst(t *testing.T) {
+	var echo bytes.Buffer
+	r := newLineReader([]byte("docs\rsess"), strings.NewReader("ions\nlater\n"), &echo)
+	var got []string
+	for i := 0; i < 3; i++ {
+		line, err := r.ReadString('\n')
+		must(t, err)
+		got = append(got, line)
+	}
+	if strings.Join(got, "|") != "docs\n|sessions\n|later\n" || echo.String() != "docs\nsess" {
+		t.Fatal(got, echo.String())
+	}
+	if line, _ := newLineReader(nil, strings.NewReader("x\n"), &echo).ReadString('\n'); line != "x\n" {
+		t.Fatal(line)
+	}
+}

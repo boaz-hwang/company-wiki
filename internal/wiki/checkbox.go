@@ -1,6 +1,7 @@
 package wiki
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -54,40 +55,61 @@ func applyKey(s checkState, key int) (checkState, bool, error) {
 	return s, false, nil
 }
 
-// readKey reads one key in raw mode: arrows (or j/k), space, enter, q or Ctrl-C.
-func readKey(in *os.File) (int, error) {
+// readChunk reads whatever the terminal has in raw mode; keys typed or pasted together arrive in one chunk.
+func readChunk(in *os.File) ([]byte, error) {
 	old, err := term.MakeRaw(int(in.Fd()))
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer term.Restore(int(in.Fd()), old)
-	buf := make([]byte, 8)
+	buf := make([]byte, 256)
 	n, err := in.Read(buf)
-	if err != nil {
-		return 0, err
+	return buf[:n], err
+}
+
+// parseKeys splits a chunk into keys in order: ESC [ A / ESC [ B or k/j, space, enter (\r, \n or \r\n),
+// q or Ctrl-C. Other bytes are ignored. ends[i] is the offset just after keys[i].
+func parseKeys(b []byte) (keys, ends []int) {
+	for i := 0; i < len(b); i++ {
+		key := 0
+		switch c := b[i]; {
+		case c == 0x1b && i+2 < len(b) && b[i+1] == '[' && (b[i+2] == 'A' || b[i+2] == 'B'):
+			key = keyUp
+			if b[i+2] == 'B' {
+				key = keyDown
+			}
+			i += 2
+		case c == ' ':
+			key = keySpace
+		case c == '\r' || c == '\n':
+			key = keyEnter
+			if c == '\r' && i+1 < len(b) && b[i+1] == '\n' {
+				i++
+			}
+		case c == 3 || c == 'q':
+			key = keyAbort
+		case c == 'k':
+			key = keyUp
+		case c == 'j':
+			key = keyDown
+		}
+		if key != 0 {
+			keys, ends = append(keys, key), append(ends, i+1)
+		}
 	}
-	b := buf[:n]
-	switch {
-	case len(b) >= 3 && b[0] == 0x1b && b[1] == '[' && b[2] == 'A':
-		return keyUp, nil
-	case len(b) >= 3 && b[0] == 0x1b && b[1] == '[' && b[2] == 'B':
-		return keyDown, nil
-	case len(b) == 0:
-		return 0, nil
+	return keys, ends
+}
+
+// runKeys applies a chunk's keys in order. When enter confirms, rest holds the bytes after it,
+// which belong to the prompts that follow.
+func runKeys(s checkState, chunk []byte) (next checkState, done bool, rest []byte, err error) {
+	keys, ends := parseKeys(chunk)
+	for i, key := range keys {
+		if s, done, err = applyKey(s, key); err != nil || done {
+			return s, done, chunk[ends[i]:], err
+		}
 	}
-	switch b[0] {
-	case ' ':
-		return keySpace, nil
-	case '\r', '\n':
-		return keyEnter, nil
-	case 3, 'q':
-		return keyAbort, nil
-	case 'k':
-		return keyUp, nil
-	case 'j':
-		return keyDown, nil
-	}
-	return 0, nil
+	return s, false, nil, nil
 }
 
 type item struct{ key, label string }
@@ -109,20 +131,21 @@ func renderChecklist(out io.Writer, title string, items []item, s checkState, fi
 	}
 }
 
-// checkbox returns the selected keys in list order.
-func checkbox(in *os.File, out io.Writer, title string, items []item) ([]string, error) {
+// checkbox returns the selected keys in list order and any bytes read after the confirming enter.
+func checkbox(in *os.File, out io.Writer, title string, items []item) ([]string, []byte, error) {
 	enableVT(out)
 	s := checkState{selected: map[int]bool{}, count: len(items)}
 	hint := title + "  (↑↓ 이동 · space 선택 · enter 확인 · q 취소)"
 	renderChecklist(out, hint, items, s, true)
 	for {
-		key, err := readKey(in)
+		chunk, err := readChunk(in)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		var done bool
-		if s, done, err = applyKey(s, key); err != nil {
-			return nil, err
+		var rest []byte
+		if s, done, rest, err = runKeys(s, chunk); err != nil {
+			return nil, nil, err
 		}
 		renderChecklist(out, hint, items, s, false)
 		if done {
@@ -135,7 +158,7 @@ func checkbox(in *os.File, out io.Writer, title string, items []item) ([]string,
 			for i, n := range idx {
 				keys[i] = items[n].key
 			}
-			return keys, nil
+			return keys, rest, nil
 		}
 	}
 }
@@ -146,3 +169,34 @@ func isTerminal(v any) bool {
 }
 
 func trimLine(s string) string { return strings.TrimRight(s, "\r\n") }
+
+// lineReader reads answers first from bytes that arrived with the checklist keys, then from the terminal.
+// Raw mode did not echo those bytes, so it echoes them; their raw enter (\r) ends a line.
+type lineReader struct {
+	pending *bufio.Reader
+	term    *bufio.Reader
+	echo    io.Writer
+}
+
+func newLineReader(pending []byte, in io.Reader, echo io.Writer) *lineReader {
+	r := &lineReader{term: bufio.NewReader(in), echo: echo}
+	if len(pending) > 0 {
+		text := strings.ReplaceAll(strings.ReplaceAll(string(pending), "\r\n", "\n"), "\r", "\n")
+		r.pending = bufio.NewReader(strings.NewReader(text))
+	}
+	return r
+}
+
+func (r *lineReader) ReadString(delim byte) (string, error) {
+	head := ""
+	if r.pending != nil {
+		s, err := r.pending.ReadString(delim)
+		fmt.Fprint(r.echo, s)
+		if err == nil {
+			return s, nil
+		}
+		r.pending, head = nil, s
+	}
+	s, err := r.term.ReadString(delim)
+	return head + s, err
+}
