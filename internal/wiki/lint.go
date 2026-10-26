@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -24,12 +25,21 @@ var (
 //	warning : registered source folder missing, changed or moved cited lines, expired sessions,
 //	          orphan pages, placeholders, duplicate titles, status/history fields, stale index.md
 //	info    : citations without a recorded hash, contradicts relations, pages over 200 lines
+//
+// With c.WikiOnly (lint --wiki-only) the wiki folder is checked by itself, as in the wiki repository's CI:
+// cited files and registry hashes cannot be checked there, so they are reported as one info.
 func Lint(c *Config, out io.Writer) int {
 	if !isDir(c.WikiRoot) {
 		fmt.Fprintf(out, "[ERROR] Wiki directory not found: %s; run company-wiki setup first\n", c.WikiRoot)
 		return 1
 	}
+	if c.WikiOnly && !isFile(filepath.Join(c.WikiRoot, "index.md")) && !hasTypeFolder(c.WikiRoot) {
+		fmt.Fprintf(out, "[ERROR] 위키 폴더가 아님: %s (index.md·concepts/·entities/·policies/ 없음)\n", c.WikiRoot)
+		return 1
+	}
 	var errs, warns, infos []string
+	// --wiki-only: distinct citations per page, and their source files.
+	unchecked, uncheckedFiles := map[string]bool{}, map[string]bool{}
 	pages := c.pages()
 	res := newResolver(slugsOf(pages))
 	reg, err := c.loadRegistry()
@@ -127,6 +137,14 @@ func Lint(c *Config, out io.Writer) int {
 		}
 
 		for _, s := range citedSpans(text) {
+			if c.WikiOnly {
+				if s.A < 1 || s.B < s.A {
+					errs = append(errs, fmt.Sprintf("%s: 인용 줄 범위 오류 `%s:%d-%d`", rel, s.Path, s.A, s.B))
+				}
+				unchecked[rel+" "+s.Key()] = true
+				uncheckedFiles[s.Path] = true
+				continue
+			}
 			f, err := c.resolveResource(s.Path)
 			if err != nil {
 				errs = append(errs, fmt.Sprintf("%s: %v", rel, err))
@@ -154,7 +172,11 @@ func Lint(c *Config, out io.Writer) int {
 				errs = append(errs, fmt.Sprintf("%s: 인용 줄 범위 오류 `%s:%d-%d` (파일은 %d줄)", rel, s.Path, s.A, s.B, n))
 			}
 		}
-		for _, ks := range c.freshness(p.Slug, text, reg) {
+		var states []keyState
+		if !c.WikiOnly {
+			states = c.freshness(p.Slug, text, reg)
+		}
+		for _, ks := range states {
 			switch ks.state {
 			case "moved":
 				warns = append(warns, fmt.Sprintf("%s: 인용 줄 이동 `%s` → `%s`. 내용은 같으니 인용 번호를 고치고 company-wiki registry record", rel, ks.key, c.movedTo(ks.key, p.Slug, reg)))
@@ -172,6 +194,9 @@ func Lint(c *Config, out io.Writer) int {
 		}
 	}
 
+	if len(unchecked) > 0 {
+		infos = append(infos, fmt.Sprintf("인용 %d개(원문 %d개)의 파일·줄 범위·해시는 CI에서 확인 불가 (--wiki-only). 원문이 있는 작업 공간에서 company-wiki lint·registry로 확인", len(unchecked), len(uncheckedFiles)))
+	}
 	for _, p := range pages {
 		if inbound[p.Slug] == 0 {
 			warns = append(warns, p.Slug+".md: 고아 페이지 (들어오는 링크·관계 0)")
@@ -220,6 +245,26 @@ func Lint(c *Config, out io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// WikiOnlyConfig checks the wiki folder alone: WIKI_ROOT, or dir. It needs no wiki.toml and registers no sources.
+func WikiOnlyConfig(env Env, dir string) *Config {
+	root := resolvePath(dir, "")
+	if v := env("WIKI_ROOT"); v != "" {
+		root = resolvePath(expandUser(v), root)
+	}
+	// Citations are not resolved, so the workspace and state roots are never read.
+	return &Config{Workspace: root, RepoRoot: root, WikiRoot: root, ExtraRoots: map[string]string{},
+		RegistryOverride: registryPath(root), WikiOnly: true}
+}
+
+func hasTypeFolder(root string) bool {
+	for _, f := range folderOrder {
+		if isDir(filepath.Join(root, f)) {
+			return true
+		}
+	}
+	return false
 }
 
 func sortedKeys(m map[string]bool) []string {

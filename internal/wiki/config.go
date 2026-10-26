@@ -43,6 +43,8 @@ type Config struct {
 	// RegistryOverride and ResourcePrefix let review preview check a temporary copy of the wiki.
 	RegistryOverride string
 	ResourcePrefix   string
+	// WikiOnly lints the wiki folder without its sources (lint --wiki-only).
+	WikiOnly bool
 }
 
 // FindConfig returns WIKI_CONFIG, or the nearest wiki.toml from dir upward, or dir/wiki.toml.

@@ -317,3 +317,72 @@ func TestConfigFoundFromSubfolder(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func copyTree(t *testing.T, src, dst string) {
+	t.Helper()
+	must(t, filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(src, p)
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		return os.WriteFile(target, readBytes(p), 0o644)
+	}))
+}
+
+func TestLintWikiOnlyChecksStructureWithoutSources(t *testing.T) {
+	w := newWS(t)
+	w.ok("setup")
+	page := "---\ntype: policy\ntitle: Returns\ndescription: Return window\nowner: support-lead\nsources:\n  - ^[/notes/policy.md:1]\n---\nReturn within 14 days. ^[/notes/policy.md:1] See [[concepts/window]].\n"
+	concept := "---\ntype: concept\ntitle: Window\ndescription: Return window\nowner: support-lead\nsources:\n  - ^[/notes/policy.md:1]\nrelated:\n  - policies/returns\n---\nWindow. ^[/notes/policy.md:1]\n"
+	must(t, os.WriteFile(filepath.Join(w.root, "knowledge/policies/returns.md"), []byte(page), 0o644))
+	must(t, os.WriteFile(filepath.Join(w.root, "knowledge/concepts/window.md"), []byte(concept), 0o644))
+	w.ok("index")
+	w.ok("registry", "record")
+	if !strings.Contains(w.ok("lint").stdout, "0 errors") {
+		t.Fatal("workspace lint")
+	}
+	// The wiki repository checked out alone: no wiki.toml, no sources.
+	repo := filepath.Join(resolvePath(t.TempDir(), ""), "wiki-repo")
+	copyTree(t, filepath.Join(w.root, "knowledge"), repo)
+	lint := func(dir string, env map[string]string, args ...string) result {
+		var out, errOut bytes.Buffer
+		code := Main(append([]string{"lint"}, args...), IO{Env: func(k string) string { return env[k] }, Dir: dir, Stdout: &out, Stderr: &errOut})
+		return result{code, out.String(), errOut.String()}
+	}
+	if r := lint(repo, nil); r.code != 1 {
+		t.Fatal("plain lint should fail outside the workspace", r)
+	}
+	r := lint(repo, nil, "--wiki-only")
+	if r.code != 0 || !strings.Contains(r.stdout, "2 pages · 0 errors") || !strings.Contains(r.stdout, "[INFO] 인용 2개(원문 1개)") || strings.Contains(r.stdout, "인용 파일 없음") {
+		t.Fatal(r)
+	}
+	if r := lint(t.TempDir(), map[string]string{"WIKI_ROOT": repo}, "--wiki-only"); r.code != 0 {
+		t.Fatal("WIKI_ROOT", r)
+	}
+	if r := lint(t.TempDir(), nil, "--wiki-only"); r.code != 1 || !strings.Contains(r.stdout, "위키 폴더가 아님") {
+		t.Fatal("empty folder accepted", r)
+	}
+	if r := lint(repo, nil, "--wiki-only", "extra"); r.code != 2 {
+		t.Fatal("unknown argument accepted", r)
+	}
+	for _, broken := range []struct{ old, new, want string }{
+		{"[[concepts/window]]", "[[concepts/nowhere]]", "없는 페이지로의 위키링크"},
+		{"owner: support-lead\n", "", "필수 키 누락 `owner`"},
+		{"type: policy", "type: concept", "concepts/ 아래에 둔다"},
+		{"Return within 14 days. ^[/notes/policy.md:1]", "Return within 14 days. ^[/notes/policy.md:3-2]", "인용 줄 범위 오류"},
+	} {
+		must(t, os.WriteFile(filepath.Join(repo, "policies/returns.md"), []byte(strings.Replace(page, broken.old, broken.new, 1)), 0o644))
+		if r := lint(repo, nil, "--wiki-only"); r.code != 1 || !strings.Contains(r.stdout, broken.want) {
+			t.Fatal(broken.want, r)
+		}
+	}
+	must(t, os.WriteFile(filepath.Join(repo, "policies/returns.md"), []byte(page), 0o644))
+	must(t, os.WriteFile(filepath.Join(repo, "concepts/window.md"), []byte(strings.Replace(concept, "policies/returns", "policies/gone", 1)), 0o644))
+	if r := lint(repo, nil, "--wiki-only"); r.code != 1 || !strings.Contains(r.stdout, "없는 대상 `policies/gone`") {
+		t.Fatal("related target", r)
+	}
+}

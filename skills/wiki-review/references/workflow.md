@@ -14,7 +14,7 @@ git -C llm-wiki add -A && git -C llm-wiki commit -m "<변경 요약>" && gh pr c
 # 담당자(owner) 승인 후 병합
 ```
 
-PR 본문에는 아래 카드의 judgments와 같은 내용(이전·제안·이유·근거)을 쓴다. 병합이 채택이며 이력은 Git이 맡는다. 원문 변경을 재검토한 페이지는 `company-wiki registry record <페이지>`로 갱신해 같은 PR에 넣는다. 담당자가 자기 페이지를 직접 고칠 때도 같은 검사와 record를 거쳐 커밋한다. 위키 저장소에서 PR마다 lint를 돌리려면 templates/wiki-pr-check.yml을 쓴다.
+PR 본문에는 아래 카드의 judgments와 같은 내용(이전·제안·이유·근거)을 쓴다. 병합이 채택이며 이력은 Git이 맡는다. 원문 변경을 재검토한 페이지는 `company-wiki registry record <페이지>`로 갱신해 같은 PR에 넣는다. 담당자가 자기 페이지를 직접 고칠 때도 같은 검사와 record를 거쳐 커밋한다. 위키 저장소에서 main push마다 `company-wiki lint --wiki-only`로 구조를 검사하려면 templates/wiki-check.yml을 쓴다.
 
 ## 세션 경로 (company-wiki review)
 

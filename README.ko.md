@@ -126,7 +126,7 @@ PR로 반영하고(여기서 승인하면 company-wiki review로), 이후 이 �
 
 ## 변경 승인
 
-- **Git PR (기본):** 작업 공간에서 초안 → 브랜치에서 `company-wiki registry record`로 `.verification/registry.json` 갱신 → 위키 저장소에 PR → 담당자 승인 → 병합. 담당자는 자기 페이지를 Obsidian에서 직접 고칠 수도 있으며, 이때도 lint와 `record <페이지>`를 실행하고 커밋합니다. PR마다 lint를 돌리려면 [templates/wiki-pr-check.yml](templates/wiki-pr-check.yml)을 위키 저장소에 복사합니다.
+- **Git PR (기본):** 작업 공간에서 초안 → 브랜치에서 `company-wiki registry record`로 `.verification/registry.json` 갱신 → 위키 저장소에 PR → 담당자 승인 → 병합. 담당자는 자기 페이지를 Obsidian에서 직접 고칠 수도 있으며, 이때도 lint와 `record <페이지>`를 실행하고 커밋합니다. main에 push할 때마다 `company-wiki lint --wiki-only`를 돌리려면 [templates/wiki-check.yml](templates/wiki-check.yml)을 위키 저장소에 복사합니다. 원문이 없는 러너에서 구조만 검사합니다.
 - **세션 안 승인 (`company-wiki review`):** `prepare → preview → decide → apply`. 결정은 Claude Code·Codex 세션의 실제 사용자 메시지를 인용해야 합니다. 버전·결정·receipt는 작업 공간에 남고, apply는 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
 
 ## 원문 변경 감지

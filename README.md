@@ -128,7 +128,7 @@ review, and query the wiki with this repository's skills.
 
 ## Approving changes
 
-- **Git PR (default):** draft in the workspace → on the branch, `company-wiki registry record` updates `.verification/registry.json` → PR to the wiki repository → owner approves → merge. Owners may also edit their own pages directly in Obsidian; they still run lint and `record <page>` and commit. Copy [templates/wiki-pr-check.yml](templates/wiki-pr-check.yml) into the wiki repository to run lint on every PR.
+- **Git PR (default):** draft in the workspace → on the branch, `company-wiki registry record` updates `.verification/registry.json` → PR to the wiki repository → owner approves → merge. Owners may also edit their own pages directly in Obsidian; they still run lint and `record <page>` and commit. Copy [templates/wiki-check.yml](templates/wiki-check.yml) into the wiki repository to run `company-wiki lint --wiki-only` on every push to main; it checks structure without the sources, which are not on the runner.
 - **In-session (`company-wiki review`):** `prepare → preview → decide → apply`. The decision must quote a real user message from a Claude Code or Codex session. Versions, decisions, and receipts stay in the workspace; apply writes only the approved pages and the index, and updates the registry. See [workflow.md](skills/wiki-review/references/workflow.md).
 
 ## Source change detection

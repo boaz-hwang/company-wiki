@@ -12,7 +12,7 @@ var Version = "dev"
 const usage = `company-wiki — LLM wiki of adopted knowledge (concepts, entities, policies)
 
   company-wiki setup [--source kind[:alias]=path ...] [--list-kinds]
-  company-wiki lint
+  company-wiki lint [--wiki-only]
   company-wiki index
   company-wiki registry [record [page ...]] [--source path] [--page slug] [--all] [--json]
   company-wiki review prepare|preview|decide|apply|status|recover ...
@@ -20,7 +20,9 @@ const usage = `company-wiki — LLM wiki of adopted knowledge (concepts, entitie
   company-wiki session <path> [--start N] [--end M] [--tools] [--max-chars N]
   company-wiki version
 
-wiki.toml is WIKI_CONFIG, or the nearest wiki.toml from the current folder upward.`
+wiki.toml is WIKI_CONFIG, or the nearest wiki.toml from the current folder upward.
+lint --wiki-only checks the current folder (or WIKI_ROOT) as the wiki without wiki.toml or sources,
+for the wiki repository's CI; cited files and registry hashes are reported as info.`
 
 // IO bundles a command's environment for tests.
 type IO struct {
@@ -49,6 +51,15 @@ func Main(args []string, x IO) int {
 		return Setup(rest, x)
 	case "session":
 		return SessionCmd(rest, x)
+	case "lint":
+		opts, pos, err := parseFlags(rest, nil, map[string]bool{"wiki-only": true})
+		if err != nil || len(pos) > 0 {
+			fmt.Fprintf(x.Stderr, "usage: company-wiki lint [--wiki-only]\n")
+			return 2
+		}
+		if opts["wiki-only"] != "" {
+			return Lint(WikiOnlyConfig(x.Env, x.Dir), x.Stdout)
+		}
 	}
 	c, err := LoadConfig(x.Env, x.Dir)
 	if err != nil {
