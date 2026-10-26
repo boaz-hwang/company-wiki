@@ -3,6 +3,7 @@ package wiki
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -332,14 +333,61 @@ func TestParseKeysSplitsChunks(t *testing.T) {
 		{"\r\n", []int{keyEnter}},
 		{"x\x1b[C\x1b\xec\x95\x88 q\x03", []int{keySpace, keyAbort, keyAbort}},
 		{"\x1b[", nil},
+		{"\x1b\x1b[Bq", []int{keyDown, keyAbort}},
 	} {
-		keys, ends := parseKeys([]byte(c.chunk))
+		keys, ends, _ := parseKeys([]byte(c.chunk))
 		if fmtAny(keys) != fmtAny(c.keys) || len(ends) != len(keys) {
 			t.Fatalf("%q: %v", c.chunk, keys)
 		}
 	}
-	if _, ends := parseKeys([]byte("\x1b[B \r\ndocs")); fmtAny(ends) != fmtAny([]int{3, 4, 6}) {
-		t.Fatal(ends)
+	if _, ends, keep := parseKeys([]byte("\x1b[B \r\ndocs")); fmtAny(ends) != fmtAny([]int{3, 4, 6}) || keep != 10 {
+		t.Fatal(ends, keep)
+	}
+	// An escape sequence cut off at the end of a read is kept for the next one.
+	for chunk, keep := range map[string]int{"\x1b": 0, " \x1b": 1, "j\x1b[": 1, "\x1b[C": 3, "\x1bx": 2} {
+		if _, _, got := parseKeys([]byte(chunk)); got != keep {
+			t.Fatalf("%q: keep %d, want %d", chunk, got, keep)
+		}
+	}
+}
+
+// Reads split anywhere, even inside an arrow sequence, give the same result as one read.
+func TestChecklistJoinsSplitEscapeSequences(t *testing.T) {
+	items := []item{{"documents", "docs"}, {"code", "code"}, {"slack", "slack"}}
+	run := func(reads ...string) ([]string, string, error) {
+		i := 0
+		read := func() ([]byte, error) {
+			if i == len(reads) {
+				return nil, io.EOF
+			}
+			i++
+			return []byte(reads[i-1]), nil
+		}
+		var out bytes.Buffer
+		keys, rest, err := checklist(read, &out, "t", items)
+		if strings.Contains(out.String(), "\n") && strings.Count(out.String(), "\n") != strings.Count(out.String(), "\r\n") {
+			t.Fatal("raw-mode lines need \\r\\n")
+		}
+		return keys, string(rest), err
+	}
+	for _, reads := range [][]string{
+		{"\x1b[B \r"},
+		{"\x1b", "[B", " ", "\r"},
+		{"\x1b[", "B \r"},
+		{"\x1b", "[", "B", " \r"},
+	} {
+		if keys, rest, err := run(reads...); err != nil || strings.Join(keys, ",") != "code" || rest != "" {
+			t.Fatalf("%q: %v %q %v", reads, keys, rest, err)
+		}
+	}
+	if keys, rest, err := run("\r", " \rdocs\r"); err != nil || strings.Join(keys, ",") != "documents" || rest != "docs\r" {
+		t.Fatal(keys, rest, err)
+	}
+	if _, _, err := run("j", "q"); err != errCancelled {
+		t.Fatal("q", err)
+	}
+	if _, _, err := run("\x1b"); err != io.EOF {
+		t.Fatal("end of input", err)
 	}
 }
 
