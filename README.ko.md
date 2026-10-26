@@ -142,7 +142,7 @@ concepts, entities, policies에 넣고 규칙과 사실마다 원문 줄 인용�
 - **에이전트 제안 (`company-wiki review`):** 작업 공간에서 초안 → `prepare → preview` → 담당자가 세션에서 답변 → `decide → apply` → main에 커밋·푸시. 결정은 Claude Code·Codex 세션의 실제 사용자 메시지를 인용해야 합니다. 버전·결정·receipt는 작업 공간에 남고, apply는 lint를 통과한 뒤 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
 - **담당자 직접 편집:** 담당자는 자기 페이지를 Obsidian·IDE에서 직접 고칠 수 있습니다. lint → `company-wiki registry record <페이지>` → main에 커밋·푸시.
 
-main에 push할 때마다 `company-wiki lint --wiki-only`를 돌리려면 [templates/wiki-check.yml](templates/wiki-check.yml)을 위키 저장소에 복사합니다. 원문이 없는 러너에서 구조만 검사합니다. push 뒤의 감지 장치이며, 반영 전 검사는 apply의 lint와 담당자의 lint가 맡습니다.
+main에 push할 때마다 `company-wiki lint --wiki-only`를 돌리려면 [templates/wiki-check.yml](templates/wiki-check.yml)을 위키 저장소에 복사합니다. 원문이 없는 러너에서 구조만 검사하고, `card.json`·`decisions.jsonl`·`.md.txt` 초안 같은 변경 절차 자료가 위키에 커밋됐으면 실패합니다. push 뒤의 감지 장치이며, 반영 전 검사는 apply의 lint와 담당자의 lint가 맡습니다.
 
 ## 원문 변경 감지
 

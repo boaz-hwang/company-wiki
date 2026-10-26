@@ -145,7 +145,7 @@ Changes go straight to the wiki repository's main branch; there are no PRs or br
 - **Agent proposals (`company-wiki review`):** draft in the workspace → `prepare → preview` → the owner answers in the session → `decide → apply` → commit and push to main. The decision must quote a real user message from a Claude Code or Codex session. Versions, decisions, and receipts stay in the workspace; apply runs lint, writes only the approved pages and the index, and updates the registry. See [workflow.md](skills/wiki-review/references/workflow.md).
 - **Owner edits:** owners may edit their own pages directly in Obsidian or an IDE: lint → `company-wiki registry record <page>` → commit and push to main.
 
-Copy [templates/wiki-check.yml](templates/wiki-check.yml) into the wiki repository to run `company-wiki lint --wiki-only` on every push to main; it checks structure without the sources, which are not on the runner. It detects problems after a push; checking before a change lands is the job of apply's lint and the owner's lint.
+Copy [templates/wiki-check.yml](templates/wiki-check.yml) into the wiki repository to run `company-wiki lint --wiki-only` on every push to main; it checks structure without the sources, which are not on the runner, and fails if change materials such as `card.json`, `decisions.jsonl` or `.md.txt` drafts were committed into the wiki. It detects problems after a push; checking before a change lands is the job of apply's lint and the owner's lint.
 
 ## Source change detection
 

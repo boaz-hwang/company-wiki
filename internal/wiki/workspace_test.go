@@ -708,3 +708,36 @@ func TestDetectVaultPrefersOpenThenRecent(t *testing.T) {
 		t.Fatal("latest vault not preferred", got)
 	}
 }
+
+func TestLintRejectsChangeMaterialsInWiki(t *testing.T) {
+	w := newWS(t)
+	w.ok("setup")
+	wiki := filepath.Join(w.root, "llm-wiki")
+	must(t, os.MkdirAll(filepath.Join(wiki, ".git", "x"), 0o755))
+	must(t, os.WriteFile(filepath.Join(wiki, ".git", "x", "card.json"), []byte("{}"), 0o644))
+	wikiOnly := func() result {
+		var out, errOut bytes.Buffer
+		code := Main([]string{"lint", "--wiki-only"}, IO{Env: func(string) string { return "" }, Dir: wiki, Stdout: &out, Stderr: &errOut})
+		return result{code, out.String(), errOut.String()}
+	}
+	if r := w.run("lint"); r.code != 0 || wikiOnly().code != 0 {
+		t.Fatal(".git or .verification flagged", r)
+	}
+	for _, rel := range []string{"card.json", "policies/x.md.txt", "reviews/b/topics/t/r0001/manifest.json", "b/decisions.jsonl", "b/applied.jsonl",
+		"concepts/inventory.json", "response.json"} {
+		p := filepath.Join(wiki, filepath.FromSlash(rel))
+		must(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		must(t, os.WriteFile(p, []byte("{}"), 0o644))
+		want := "[ERROR] " + rel + ": 변경 절차 자료는 위키에 두지 않는다. workspace/wiki-changes에 둔다"
+		if r := w.run("lint"); r.code != 1 || !strings.Contains(r.stdout, want) {
+			t.Fatal(rel, r)
+		}
+		if r := wikiOnly(); r.code != 1 || !strings.Contains(r.stdout, want) {
+			t.Fatal("--wiki-only", rel, r)
+		}
+		must(t, os.Remove(p))
+	}
+	if r := w.run("lint"); r.code != 0 {
+		t.Fatal(r)
+	}
+}

@@ -15,11 +15,16 @@ var (
 	requiredKeys  = []string{"type", "title", "description", "owner"}
 	// Adoption and history belong to the default branch and Git.
 	gitManaged = []string{"status", "adopted", "verified", "verification_history", "generated", "supersedes", "contested"}
+	// Change-process files belong in workspace/wiki-changes; finding one in the wiki means undecided
+	// material could be committed. Draft and snapshot copies end in .md.txt.
+	changeMaterials = map[string]bool{"card.json": true, "manifest.json": true, "decisions.jsonl": true, "applied.jsonl": true,
+		"inventory.json": true, "response.json": true, "apply-journal.json": true}
 )
 
 // Lint checks structure deterministically and returns 1 when there are errors.
 //
-//	error   : missing or broken frontmatter, missing type·title·description·owner, wrong type or folder,
+//	error   : change materials (cards, manifests, decisions, receipts, inventories, .md.txt drafts) in the wiki,
+//	          missing or broken frontmatter, missing type·title·description·owner, wrong type or folder,
 //	          wikilinks or related targets that do not exist, unknown relation types or evidence,
 //	          missing sources, citations to missing files or lines, citations of change materials
 //	warning : registered source folder missing, changed or moved cited lines, expired sessions,
@@ -38,6 +43,9 @@ func Lint(c *Config, out io.Writer) int {
 		return 1
 	}
 	var errs, warns, infos []string
+	for _, rel := range strayChangeMaterials(c.WikiRoot) {
+		errs = append(errs, fmt.Sprintf("%s: 변경 절차 자료는 위키에 두지 않는다. workspace/wiki-changes에 둔다", rel))
+	}
 	// --wiki-only: distinct citations per page, and their source files.
 	unchecked, uncheckedFiles := map[string]bool{}, map[string]bool{}
 	pages := c.pages()
@@ -256,6 +264,28 @@ func WikiOnlyConfig(env Env, dir string) *Config {
 	// Citations are not resolved, so the configuration root and change materials are never read.
 	return &Config{Root: root, RepoRoot: root, WikiRoot: root, ExtraRoots: map[string]string{},
 		RegistryOverride: registryPath(root), WikiOnly: true}
+}
+
+// strayChangeMaterials lists change-process files anywhere in the wiki except .git.
+func strayChangeMaterials(wiki string) []string {
+	var out []string
+	_ = filepath.WalkDir(wiki, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if changeMaterials[d.Name()] || strings.HasSuffix(d.Name(), ".md.txt") {
+			rel, _ := filepath.Rel(wiki, p)
+			out = append(out, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	return out
 }
 
 func hasTypeFolder(root string) bool {

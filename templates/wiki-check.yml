@@ -2,7 +2,7 @@
 # Post-push detector for the wiki repository, which holds only the wiki folder. Changes are checked
 # before they land by `company-wiki review apply` (its lint) or by the owner's lint before a direct
 # commit; this job catches what still reaches main: required fields, folders, wikilinks, related
-# targets and the index. Cited sources are not on the runner, so `lint --wiki-only` reports cited
+# targets, the index, and change materials (cards, decisions, .md.txt drafts) that belong in workspace/wiki-changes. Cited sources are not on the runner, so `lint --wiki-only` reports cited
 # files and registry hashes as info instead of failing; check those with lint and registry in the workspace.
 name: Wiki check
 on:
