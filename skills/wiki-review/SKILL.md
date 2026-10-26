@@ -54,4 +54,4 @@ apply 직전에 카드와 사용자 제한 조건을 대조하고 승인된 주�
 
 apply의 구조 검사와 별도로 **인용이 주장을 지지하는가, 사용자 판단이 정확히 옮겨졌는가, 범위 밖 해석·연결이 들어갔는가**를 확인한다. 승인 근거 지원은 현재 Claude·Codex 사용자 메시지에 한정되며 다른 원천은 지원을 확인하기 전 우회 인용하지 않는다.
 
-`company-wiki lint`와 status·applied.jsonl을 확인하고 apply가 쓴 페이지·index·.verification/registry.json만 위키 저장소 main에 커밋·푸시한다. 사용자가 지정한 저장소와 공개 범위를 따른다. 반영 파일·검사 실패/미검증·남은 판단을 보고한다. 전체 조사 경계 갱신은 update의 inventory 계약을 따르며 apply 완료와 혼동하지 않는다.
+`company-wiki lint`와 status·applied.jsonl을 확인하고 apply가 쓴 페이지·index·.verification/registry.json만 위키 저장소 main에 커밋·푸시한다. 커밋 메시지는 apply가 출력한 "커밋 메시지:" 아래의 제목과 trailer(Wiki-Change·Wiki-Revision·Approved-By·Approval-Evidence)를 고치지 않고 쓴다. 사용자가 지정한 저장소와 공개 범위를 따른다. 반영 파일·검사 실패/미검증·남은 판단을 보고한다. 전체 조사 경계 갱신은 update의 inventory 계약을 따르며 apply 완료와 혼동하지 않는다.

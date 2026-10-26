@@ -182,6 +182,9 @@ func TestExactApprovalApplyReceiptAndIdempotence(t *testing.T) {
 	if !strings.Contains(out, "이미 반영") || !reflect.DeepEqual(before, snapshotTree(f.wiki)) {
 		t.Fatal("second apply wrote again")
 	}
+	if want := "커밋 메시지:\none\n\nWiki-Change: batch/one\nWiki-Revision: " + res.Revision + "\nApproved-By: human:owner\nApproval-Evidence: ^[/claude-sessions/user.jsonl:1]"; !strings.HasSuffix(out, want) {
+		t.Fatal("re-apply message", out)
+	}
 	if exists(filepath.Join(f.wiki, "log.md")) || exists(filepath.Join(f.wiki, "reviews")) {
 		t.Fatal("records leaked into the wiki")
 	}
@@ -222,6 +225,21 @@ func TestOnlySelectedApprovedTopicIsApplied(t *testing.T) {
 	}
 	_, err = f.r.Apply("batch", []string{"one"})
 	must(t, err)
+}
+
+func TestApplyCommitMessageTracesEachTopicToItsDecision(t *testing.T) {
+	f := newFixture(t)
+	a := f.prepare("one", nil, nil)
+	b := f.prepare("two", one("concepts/b.md", page("b", "text", "")), nil)
+	must(t, f.approve(a, "approved"))
+	must(t, f.approve(b, "approved"))
+	out, err := f.r.Apply("batch", []string{"one", "two"})
+	must(t, err)
+	want := "\n\n커밋 메시지:\none; two\n\nWiki-Change: batch/one\nWiki-Revision: " + a.Revision + "\nApproved-By: human:owner\nApproval-Evidence: ^[/claude-sessions/user.jsonl:1]" +
+		"\nWiki-Change: batch/two\nWiki-Revision: " + b.Revision + "\nApproved-By: human:owner\nApproval-Evidence: ^[/claude-sessions/user.jsonl:1]"
+	if !strings.HasSuffix(out, want) || !strings.Contains(out, "반영 완료: one, two") {
+		t.Fatal(out)
+	}
 }
 
 func TestModelAndToolCannotSupplyApproval(t *testing.T) {

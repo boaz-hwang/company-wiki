@@ -10,9 +10,17 @@ PR·브랜치는 쓰지 않고 위키 저장소의 main에 직접 커밋·푸시
 - 담당자 직접 편집: 자기 페이지를 고친 뒤 lint → `registry record <페이지>` → main 커밋·푸시.
 
 ```bash
-# 에이전트 제안: apply 성공 뒤
-git -C llm-wiki add <반영 페이지> index.md .verification/registry.json
-git -C llm-wiki commit -m "<batch>/<topic>: <변경 요약>" && git -C llm-wiki push origin main
+# 에이전트 제안: apply 성공 뒤. 메시지는 apply가 출력한 "커밋 메시지:" 아래 내용을 그대로 쓴다
+git -C ~/company-wiki/llm-wiki add <반영 페이지> index.md .verification/registry.json
+git -C ~/company-wiki/llm-wiki commit -F - <<'EOF'
+<카드 제목>
+
+Wiki-Change: <batch>/<topic>
+Wiki-Revision: <전체 revision 해시>
+Approved-By: <response.by>
+Approval-Evidence: <response.evidence>
+EOF
+git -C ~/company-wiki/llm-wiki push origin main
 
 # 담당자 직접 편집
 company-wiki index && company-wiki lint
@@ -22,7 +30,7 @@ git -C llm-wiki add <바꾼 페이지> index.md .verification/registry.json
 git -C llm-wiki commit -m "<변경 요약>" && git -C llm-wiki push origin main
 ```
 
-main에 있으면 채택이며 이력은 Git이 맡는다. 판단·근거는 커밋이 아니라 작업 공간의 카드·decisions.jsonl에 남는다. 원문 변경(changed)을 재검토해 본문은 그대로 두고 해시만 갱신할 때도 담당자 확인 뒤 `registry record <페이지>`로 기록해 main에 커밋한다. 위키 저장소에서 main push마다 `company-wiki lint --wiki-only`로 구조를 검사하려면 templates/wiki-check.yml을 쓴다. push 뒤의 감지 장치이며, 반영 전 검사는 apply의 lint와 직접 편집 때의 lint가 맡는다.
+main에 있으면 채택이며 이력은 Git이 맡는다. 판단·근거는 변경 절차 폴더의 카드·decisions.jsonl에 남고, 커밋 trailer(Wiki-Change·Wiki-Revision·Approved-By·Approval-Evidence)가 위키 커밋을 그 결정에 잇는다. 여러 주제를 한 번에 반영하면 제목은 `;`로 잇고 trailer는 주제마다 반복된다. 원문 변경(changed)을 재검토해 본문은 그대로 두고 해시만 갱신할 때도 담당자 확인 뒤 `registry record <페이지>`로 기록해 main에 커밋한다. 위키 저장소에서 main push마다 `company-wiki lint --wiki-only`로 구조를 검사하려면 templates/wiki-check.yml을 쓴다. push 뒤의 감지 장치이며, 반영 전 검사는 apply의 lint와 직접 편집 때의 lint가 맡는다.
 
 ## 검토 도구 (company-wiki review)
 
@@ -142,7 +150,7 @@ company-wiki review apply batch-id topic-id
 company-wiki review status
 ```
 
-apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하고 임시 전체 lint를 통과한 뒤 반영한다. 위키에는 선택한 페이지·파생 index·.verification/registry.json(인용 줄 해시)만 쓰고, 작업 공간에는 반영 receipt(applied.jsonl)를 쓴다. 적용된 동일 버전 재실행은 추가 쓰기를 하지 않는다. 위키가 Git 저장소라면 반영 뒤 반영 경로대로 main에 커밋·푸시한다.
+apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하고 임시 전체 lint를 통과한 뒤 반영한다. 위키에는 선택한 페이지·파생 index·.verification/registry.json(인용 줄 해시)만 쓰고, 작업 공간에는 반영 receipt(applied.jsonl)를 쓴다. 적용된 동일 버전 재실행은 추가 쓰기를 하지 않고 같은 커밋 메시지를 다시 출력한다. 반영 뒤 apply가 출력한 커밋 메시지로 반영 경로대로 main에 커밋·푸시한다.
 
 기준이 바뀌면 오류가 해당 항목과 경로를 알려준다. 그 주제만 현재 문서에서 다시 준비해 차이를 검토한다. 다른 주제 승인은 재사용한다. 경고는 사람이 판단할 내용으로 보고하며 errors는 반영을 막는다. 소스·세션을 읽을 수 없으면 검사를 우회하지 말고 그 항목의 근거를 복원한다.
 

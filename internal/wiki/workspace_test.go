@@ -158,9 +158,16 @@ func TestConfiguredAliasReviewerAndFullPublicWorkflow(t *testing.T) {
 	if r := w.approve(revision, "user", "human:alice"); r.code != 0 {
 		t.Fatal(r.stderr)
 	}
-	w.ok("review", "apply", "first", "returns")
+	applied := w.ok("review", "apply", "first", "returns").stdout
+	message := "커밋 메시지:\nReturn policy\n\nWiki-Change: first/returns\nWiki-Revision: " + revision +
+		"\nApproved-By: human:alice\nApproval-Evidence: ^[/claude-sessions/decision.jsonl:1]\n"
+	if !strings.HasSuffix(applied, message) {
+		t.Fatal(applied)
+	}
 	receipt := w.read("workspace/wiki-changes/first/applied.jsonl")
-	w.ok("review", "apply", "first", "returns")
+	if again := w.ok("review", "apply", "first", "returns").stdout; !strings.HasSuffix(again, "\n\n"+message) || !strings.HasPrefix(again, "이미 반영됨") {
+		t.Fatal(again)
+	}
 	if w.read("workspace/wiki-changes/first/applied.jsonl") != receipt {
 		t.Fatal("second apply added a receipt")
 	}

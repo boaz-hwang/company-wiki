@@ -1097,7 +1097,12 @@ func (r *Review) Apply(batch string, topics []string) (string, error) {
 		return "", err
 	}
 	if len(res.selected) == 0 {
-		return "이미 반영됨. 추가 변경 없음.", nil
+		// Same suggested message as the first apply, in case that commit was not made yet.
+		out := "이미 반영됨. 추가 변경 없음."
+		if msg, err := r.commitMessage(batch, topics); err == nil {
+			out += "\n\n" + msg
+		}
+		return out, nil
 	}
 	if !samePages(baseline, r.pages()) {
 		return "", errors.New("검사 중 위키가 바뀌었습니다. 다시 apply하세요.")
@@ -1168,8 +1173,35 @@ func (r *Review) Apply(batch string, topics []string) (string, error) {
 	for i, s := range res.selected {
 		names[i] = s.topic
 	}
-	return res.output + "\n반영 완료: " + strings.Join(names, ", "), nil
+	out := res.output + "\n반영 완료: " + strings.Join(names, ", ")
+	if msg, err := r.commitMessage(batch, names); err == nil {
+		out += "\n\n" + msg
+	}
+	return out, nil
 }
+
+// commitMessage suggests the wiki commit for applied topics. Its trailers trace each change in the wiki's
+// Git history to the decision recorded in the change materials.
+func (r *Review) commitMessage(batch string, topics []string) (string, error) {
+	var titles, trailers []string
+	for _, topic := range topics {
+		_, m, card, err := r.current(batch, topic)
+		if err != nil {
+			return "", err
+		}
+		decision, err := r.decision(batch, topic, m.Revision)
+		if err != nil {
+			return "", err
+		}
+		resp, _ := decision["response"].(map[string]any)
+		titles = append(titles, oneLine(cardStr(card, "title")))
+		trailers = append(trailers, "Wiki-Change: "+batch+"/"+topic, "Wiki-Revision: "+m.Revision,
+			"Approved-By: "+oneLine(str(resp["by"])), "Approval-Evidence: "+oneLine(str(resp["evidence"])))
+	}
+	return "커밋 메시지:\n" + strings.Join(titles, "; ") + "\n\n" + strings.Join(trailers, "\n"), nil
+}
+
+func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 func (r *Review) recoverJournal() error {
 	raw, err := readJSON(r.journal)
