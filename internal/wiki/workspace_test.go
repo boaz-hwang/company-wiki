@@ -552,6 +552,56 @@ func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
 	}
 }
 
+// /x/... citations where x is not an alias are root-relative; every spelling of one file matches.
+func TestRegistrySourceMatchesResolvedFile(t *testing.T) {
+	w := newWS(t)
+	w.ok("setup")
+	must(t, os.WriteFile(filepath.Join(w.root, "raw/other.md"), []byte("Other.\n"), 0o644))
+	pages := map[string]string{"policies/by-alias.md": "^[/notes/policy.md:1]", "policies/by-root.md": "^[/raw/policy.md:1]"}
+	for rel, cite := range pages {
+		page := "---\ntype: policy\ntitle: " + rel + "\ndescription: d\nowner: support-lead\nsources:\n  - " + cite + "\n---\nText. " + cite + "\n"
+		must(t, os.WriteFile(filepath.Join(w.root, "llm-wiki", filepath.FromSlash(rel)), []byte(page), 0o644))
+	}
+	w.ok("registry", "record")
+	query := func(dir, source string) (result, map[string]map[string][][]string) {
+		var out, errOut bytes.Buffer
+		code := Main([]string{"registry", "--source", source, "--json"}, IO{Env: func(string) string { return "" }, Dir: dir, Stdout: &out, Stderr: &errOut})
+		var got struct{ Citations map[string]map[string][][]string }
+		_ = json.Unmarshal(out.Bytes(), &got)
+		return result{code, out.String(), errOut.String()}, got.Citations
+	}
+	both := []string{"/notes/policy.md", "/raw/policy.md"}
+	for _, c := range []struct{ dir, source string }{
+		{w.root, "/notes/policy.md"},
+		{w.root, "/raw/policy.md"},
+		{w.root, "/raw/./policy.md"},
+		{w.root, "raw/policy.md"},
+		{t.TempDir(), filepath.Join(w.root, "raw", "policy.md")},
+		{filepath.Join(w.root, "raw"), "policy.md"},
+	} {
+		r, got := query(c.dir, c.source)
+		if r.code != 0 || len(got) != 2 {
+			t.Fatal(c.source, r)
+		}
+		for _, k := range both {
+			if len(got[k]["fresh"]) != 1 {
+				t.Fatal(c.source, k, r)
+			}
+		}
+	}
+	// Inside a source but uncited: no pages. Outside every source and uncited: an error.
+	for _, source := range []string{"/raw/other.md", "/notes/other.md", "raw/other.md"} {
+		if r, got := query(w.root, source); r.code != 0 || len(got) != 0 {
+			t.Fatal(source, r)
+		}
+	}
+	for _, source := range []string{"/wiki.toml", "/llm-wiki/policies/by-root.md", "/nowhere/x.md"} {
+		if r, _ := query(w.root, source); r.code != 1 || !strings.Contains(r.stderr, "등록 원천 밖의 경로") {
+			t.Fatal(source, r)
+		}
+	}
+}
+
 func TestSetupSkipsAlreadyRegisteredSources(t *testing.T) {
 	w := newWS(t)
 	home := w.home
