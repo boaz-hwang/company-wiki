@@ -651,8 +651,19 @@ func (r *Review) userEvidence(response map[string]any) (string, error) {
 	ref, _ := response["evidence"].(string)
 	quote, _ := response["quote"].(string)
 	m := citationFullRE.FindStringSubmatch(ref)
-	if m == nil || !(strings.HasPrefix(m[1], "/codex-sessions/") || strings.HasPrefix(m[1], "/claude-sessions/")) || strings.TrimSpace(quote) == "" {
+	if m == nil || strings.TrimSpace(quote) == "" {
 		return "", errors.New("실제 사용자 세션 줄 인용과 원문 quote 필요")
+	}
+	// Any enabled claude or codex source can hold the owner's answer, whatever its alias.
+	if !r.cfg.isSession(m[1]) {
+		head, _, _ := strings.Cut(strings.TrimLeft(m[1], "/"), "/")
+		if s, ok := r.cfg.source(head); ok {
+			if !s.Enabled {
+				return "", fmt.Errorf("승인 근거의 원천 `%s`가 비활성(enabled = false)이다. 사용 중인 claude·codex 세션 원천의 사용자 메시지 줄을 인용", head)
+			}
+			return "", fmt.Errorf("승인 근거의 원천 `%s`는 %s 원천이라 세션이 아니다. claude·codex 세션 원천의 사용자 메시지 줄을 인용", head, s.Kind)
+		}
+		return "", fmt.Errorf("실제 사용자 세션 줄 인용과 원문 quote 필요: `%s`는 등록된 claude·codex 세션 원천이 아님", head)
 	}
 	path, err := r.resource(m[1])
 	if err != nil {

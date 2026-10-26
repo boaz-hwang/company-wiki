@@ -200,6 +200,43 @@ func TestWrongReviewerAndAssistantEvidenceRejected(t *testing.T) {
 	}
 }
 
+// The owner's answer may sit in any registered claude/codex source, not only claude-sessions.
+func TestDecideAcceptsAnyRegisteredSessionSource(t *testing.T) {
+	w := newWS(t)
+	for _, d := range []string{"other-sessions", "mine", "codex-dir"} {
+		must(t, os.MkdirAll(filepath.Join(w.root, d), 0o755))
+	}
+	w.ok("setup", "--source", "claude=other-sessions", "--source", "claude:mine=mine", "--source", "codex:cx=codex-dir")
+	toml := w.read("wiki.toml")
+	if !strings.Contains(toml, "[sources.claude-other-sessions]") || !strings.Contains(toml, "[sources.mine]") {
+		t.Fatal(toml)
+	}
+	revision := w.prepare()
+	decide := func(alias, folder string) result {
+		row, _ := json.Marshal(map[string]any{"type": "user", "message": map[string]any{"content": "Approve the reviewed change."}})
+		must(t, os.WriteFile(filepath.Join(w.root, folder, "answer.jsonl"), append(row, '\n'), 0o644))
+		resp, _ := json.Marshal(map[string]any{"by": "human:alice", "quote": "Approve the reviewed change.", "evidence": "^[/" + alias + "/answer.jsonl:1]"})
+		must(t, os.WriteFile(filepath.Join(w.root, "response.json"), resp, 0o644))
+		return w.run("review", "decide", "first", "returns", "--revision", revision, "--decision", "deferred", "--response", filepath.Join(w.root, "response.json"))
+	}
+	for _, c := range []struct{ alias, folder string }{{"claude-other-sessions", "other-sessions"}, {"mine", "mine"}, {"cx", "codex-dir"}} {
+		if r := decide(c.alias, c.folder); r.code != 0 {
+			t.Fatal(c.alias, r)
+		}
+	}
+	// A documents source is named, not silently treated as a missing session.
+	if r := decide("notes", "raw"); r.code != 1 || !strings.Contains(r.stderr, "`notes`는 documents 원천이라 세션이 아니다") {
+		t.Fatal(r)
+	}
+	if r := decide("nowhere", "raw"); r.code != 1 || !strings.Contains(r.stderr, "`nowhere`는 등록된 claude·codex 세션 원천이 아님") {
+		t.Fatal(r)
+	}
+	w.writeConfig(strings.Replace(w.read("wiki.toml"), "[sources.mine]\n", "[sources.mine]\nenabled = false\n", 1))
+	if r := decide("mine", "mine"); r.code != 1 || !strings.Contains(r.stderr, "`mine`가 비활성") {
+		t.Fatal(r)
+	}
+}
+
 func TestHumanEditAfterPrepareIsPreserved(t *testing.T) {
 	w := newWS(t)
 	rev := w.prepare()

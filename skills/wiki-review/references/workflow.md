@@ -139,7 +139,7 @@ prepare가 전체 revision 해시와 review.md 경로를 출력한다. preview�
 company-wiki review decide batch-id topic-id --revision FULL_REVISION_HASH --decision approved --response ~/company-wiki/workspace/wiki-changes/batch-id/working/response.json
 ```
 
-decision: approved / changes_requested / deferred / rejected. quote는 실제 사용자 메시지의 연속된 원문이어야 한다. Claude 일반·작업 중 추가 메시지와 Codex 사용자 메시지를 지원한다. 모델·도구 출력을 인용하면 실패한다. 원본 세션 파일은 위키에 복사하지 않는다. 세션 원본 위치는 wiki.toml의 claude·codex 원천(별칭 claude-sessions·codex-sessions)이다.
+decision: approved / changes_requested / deferred / rejected. quote는 실제 사용자 메시지의 연속된 원문이어야 한다. Claude 일반·작업 중 추가 메시지와 Codex 사용자 메시지를 지원한다. 모델·도구 출력을 인용하면 실패한다. 원본 세션 파일은 위키에 복사하지 않는다. 세션 원본 위치는 wiki.toml에 등록·활성화된 claude·codex 종류의 원천이며 별칭은 무관하다(기본 claude-sessions·codex-sessions, 추가 원천 예: claude-<폴더>). 다른 종류 원천의 줄은 승인 근거가 아니다.
 
 “제안대로”는 사용자가 보고 답한 항목에만 매핑한다. 수정 지시가 있으면 기존 버전에 changes_requested를 기록하고 초안을 고쳐 prepare한다. 그 지시를 그대로 구현한 새 버전은 같은 사용자 발언을 근거로 approved를 기록할 수 있다. 지시에 없던 결론·연결까지 생기면 그 차이를 다시 물어야 한다. 응답 유형별 내용을 정리하는 것은 에이전트의 책임이며 스크립트가 의미 일치를 판정하지 않는다.
 
