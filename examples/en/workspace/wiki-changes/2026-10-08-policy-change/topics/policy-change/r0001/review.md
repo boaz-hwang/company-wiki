@@ -2,7 +2,7 @@
 
 The policy change adds a 30-day window for orders from 2026-02-01 and keeps 14 days for earlier orders and the made-to-order exclusion.
 
-검토 버전: `4a4b7a86e44f324c4007ee37317a7f20273db5bade79de4d18fef84316bb3471`
+검토 버전: `b90b112d867e4d1b05ecf3e8475eaafeb805897444eb45416a13d5bb56345dd4`
 
 승인 / 수정 요청 / 보류 / 제외 중 선택. 승인 범위는 아래 변경 전후와 판단 내용입니다.
 

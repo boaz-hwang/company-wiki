@@ -26,7 +26,7 @@ func newWS(t *testing.T) *ws {
 	}
 	must(t, os.WriteFile(filepath.Join(w.root, "raw/policy.md"), []byte("Return within 14 days.\n"), 0o644))
 	w.config = filepath.Join(w.root, "wiki.toml")
-	w.writeConfig("\ufeff[wiki]\npath=\"knowledge\"\ntitle=\"Team Wiki 한글\"\nreviewer=\"human:alice\"\n[sources.notes]\nkind=\"documents\"\npath=\"raw\"\n[sources.claude-sessions]\nkind=\"claude\"\npath=\"sessions\"\n")
+	w.writeConfig("\ufeff[wiki]\ntitle=\"Team Wiki 한글\"\nreviewer=\"human:alice\"\n[sources.notes]\nkind=\"documents\"\npath=\"raw\"\n[sources.claude-sessions]\nkind=\"claude\"\npath=\"sessions\"\n")
 	return w
 }
 
@@ -88,10 +88,10 @@ func TestSetupIdempotentPreservesHumanFilesAndSkills(t *testing.T) {
 	w := newWS(t)
 	must(t, os.WriteFile(filepath.Join(w.root, "AGENTS.md"), []byte("Existing project instructions\n"), 0o644))
 	w.ok("setup")
-	must(t, os.WriteFile(filepath.Join(w.root, "knowledge/SCHEMA.md"), []byte("My edited rules\n"), 0o644))
+	must(t, os.WriteFile(filepath.Join(w.root, "llm-wiki/SCHEMA.md"), []byte("My edited rules\n"), 0o644))
 	config := w.read("wiki.toml")
 	w.ok("setup")
-	if w.read("knowledge/SCHEMA.md") != "My edited rules\n" || w.read("wiki.toml") != config {
+	if w.read("llm-wiki/SCHEMA.md") != "My edited rules\n" || w.read("wiki.toml") != config {
 		t.Fatal("setup overwrote user files")
 	}
 	agents := w.read("AGENTS.md")
@@ -102,11 +102,11 @@ func TestSetupIdempotentPreservesHumanFilesAndSkills(t *testing.T) {
 		t.Fatal("setup wrote CLAUDE.md")
 	}
 	for _, folder := range []string{"concepts", "entities", "policies"} {
-		if !isDir(filepath.Join(w.root, "knowledge", folder)) {
+		if !isDir(filepath.Join(w.root, "llm-wiki", folder)) {
 			t.Fatal(folder)
 		}
 	}
-	if !isDir(filepath.Join(w.root, ".llm-wiki/reviews")) || exists(filepath.Join(w.root, "knowledge/reviews")) {
+	if !isDir(filepath.Join(w.root, "workspace/wiki-changes")) || exists(filepath.Join(w.root, "llm-wiki/reviews")) {
 		t.Fatal("workspace layout")
 	}
 	want, _ := fs.ReadFile(companywiki.Assets, "skills/wiki-review/SKILL.md")
@@ -116,7 +116,7 @@ func TestSetupIdempotentPreservesHumanFilesAndSkills(t *testing.T) {
 			t.Fatal(provider)
 		}
 	}
-	if !strings.Contains(w.read("knowledge/index.md"), "Team Wiki") {
+	if !strings.Contains(w.read("llm-wiki/index.md"), "Team Wiki") {
 		t.Fatal("index title")
 	}
 }
@@ -148,15 +148,15 @@ func TestConfiguredAliasReviewerAndFullPublicWorkflow(t *testing.T) {
 		t.Fatal(r.stderr)
 	}
 	w.ok("review", "apply", "first", "returns")
-	receipt := w.read(".llm-wiki/reviews/first/applied.jsonl")
+	receipt := w.read("workspace/wiki-changes/first/applied.jsonl")
 	w.ok("review", "apply", "first", "returns")
-	if w.read(".llm-wiki/reviews/first/applied.jsonl") != receipt {
+	if w.read("workspace/wiki-changes/first/applied.jsonl") != receipt {
 		t.Fatal("second apply added a receipt")
 	}
-	if !exists(filepath.Join(w.root, "knowledge/policies/returns.md")) || !strings.Contains(w.read("knowledge/index.md"), "[[policies/returns") {
+	if !exists(filepath.Join(w.root, "llm-wiki/policies/returns.md")) || !strings.Contains(w.read("llm-wiki/index.md"), "[[policies/returns") {
 		t.Fatal("page not applied")
 	}
-	if !isFile(filepath.Join(w.root, "knowledge/.verification/registry.json")) || exists(filepath.Join(w.root, ".llm-wiki/registry.json")) {
+	if !isFile(filepath.Join(w.root, "llm-wiki/.verification/registry.json")) || exists(filepath.Join(w.root, "workspace/wiki-changes/registry.json")) {
 		t.Fatal("registry location")
 	}
 	if !strings.Contains(w.ok("registry", "--all").stdout, "fresh") {
@@ -193,9 +193,9 @@ func TestHumanEditAfterPrepareIsPreserved(t *testing.T) {
 	if r := w.approve(rev, "user", "human:alice"); r.code != 0 {
 		t.Fatal(r.stderr)
 	}
-	p := filepath.Join(w.root, "knowledge/policies/returns.md")
+	p := filepath.Join(w.root, "llm-wiki/policies/returns.md")
 	must(t, os.WriteFile(p, []byte("Human edited this in Obsidian.\n"), 0o644))
-	if w.run("review", "apply", "first", "returns").code == 0 || w.read("knowledge/policies/returns.md") != "Human edited this in Obsidian.\n" {
+	if w.run("review", "apply", "first", "returns").code == 0 || w.read("llm-wiki/policies/returns.md") != "Human edited this in Obsidian.\n" {
 		t.Fatal("human edit overwritten")
 	}
 }
@@ -281,7 +281,7 @@ func TestLintWarnsWhenRegisteredSourceIsGone(t *testing.T) {
 
 func TestPersonalClippingsAreNotASourceKind(t *testing.T) {
 	w := newWS(t)
-	w.writeConfig("[wiki]\npath=\"knowledge\"\n[sources.Clippings]\nkind=\"clippings\"\npath=\"raw\"\n")
+	w.writeConfig("[wiki]\n[sources.Clippings]\nkind=\"clippings\"\npath=\"raw\"\n")
 	if r := w.run("lint"); r.code == 0 || !strings.Contains(r.stderr, "Unsupported source kind") {
 		t.Fatal(r)
 	}
@@ -295,22 +295,40 @@ func TestMissingExplicitConfigurationFails(t *testing.T) {
 	}
 }
 
-func TestStateInsideWikiAndWikiOutsideWorkspaceRejected(t *testing.T) {
+func TestOldWikiPathAndStateSettingsRejected(t *testing.T) {
 	w := newWS(t)
-	w.writeConfig("[wiki]\npath=\"knowledge\"\nstate=\"knowledge/.state\"\n")
-	if w.run("setup").code == 0 {
-		t.Fatal("state inside wiki accepted")
+	for _, key := range []string{"path = \"knowledge\"", "state = \".llm-wiki\""} {
+		w.writeConfig("[wiki]\n" + key + "\n")
+		for _, cmd := range []string{"lint", "setup"} {
+			if r := w.run(cmd); r.code == 0 || !strings.Contains(r.stderr, "no longer supported; the layout is fixed") ||
+				!strings.Contains(r.stderr, filepath.Join("workspace", "wiki-changes")) {
+				t.Fatal(key, cmd, r)
+			}
+		}
 	}
-	w.writeConfig("[wiki]\npath=\"../outside-wiki\"\n")
-	if w.run("setup").code == 0 {
-		t.Fatal("wiki outside workspace accepted")
+	if exists(filepath.Join(w.root, "knowledge")) || exists(filepath.Join(w.root, "llm-wiki")) {
+		t.Fatal("setup wrote folders for a rejected config")
+	}
+}
+
+func TestConfigFallsBackToFixedRoot(t *testing.T) {
+	home := resolvePath(t.TempDir(), "")
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	root := filepath.Join(home, "company-wiki")
+	must(t, os.MkdirAll(root, 0o755))
+	must(t, os.WriteFile(filepath.Join(root, "wiki.toml"), []byte("[wiki]\ntitle = \"Home\"\n"), 0o644))
+	c, err := LoadConfig(func(string) string { return "" }, t.TempDir())
+	must(t, err)
+	if c.Path != filepath.Join(root, "wiki.toml") || c.WikiRoot != filepath.Join(root, "llm-wiki") || c.ChangesRoot != filepath.Join(root, "workspace", "wiki-changes") {
+		t.Fatal(c.Path, c.WikiRoot, c.ChangesRoot)
 	}
 }
 
 func TestConfigFoundFromSubfolder(t *testing.T) {
 	w := newWS(t)
 	w.ok("setup")
-	sub := filepath.Join(w.root, "knowledge", "concepts")
+	sub := filepath.Join(w.root, "llm-wiki", "concepts")
 	var out bytes.Buffer
 	code := Main([]string{"lint"}, IO{Env: func(string) string { return "" }, Dir: sub, Stdout: &out, Stderr: &out})
 	if code != 0 || !strings.Contains(out.String(), "0 pages · 0 errors") {
@@ -338,8 +356,8 @@ func TestLintWikiOnlyChecksStructureWithoutSources(t *testing.T) {
 	w.ok("setup")
 	page := "---\ntype: policy\ntitle: Returns\ndescription: Return window\nowner: support-lead\nsources:\n  - ^[/notes/policy.md:1]\n---\nReturn within 14 days. ^[/notes/policy.md:1] See [[concepts/window]].\n"
 	concept := "---\ntype: concept\ntitle: Window\ndescription: Return window\nowner: support-lead\nsources:\n  - ^[/notes/policy.md:1]\nrelated:\n  - policies/returns\n---\nWindow. ^[/notes/policy.md:1]\n"
-	must(t, os.WriteFile(filepath.Join(w.root, "knowledge/policies/returns.md"), []byte(page), 0o644))
-	must(t, os.WriteFile(filepath.Join(w.root, "knowledge/concepts/window.md"), []byte(concept), 0o644))
+	must(t, os.WriteFile(filepath.Join(w.root, "llm-wiki/policies/returns.md"), []byte(page), 0o644))
+	must(t, os.WriteFile(filepath.Join(w.root, "llm-wiki/concepts/window.md"), []byte(concept), 0o644))
 	w.ok("index")
 	w.ok("registry", "record")
 	if !strings.Contains(w.ok("lint").stdout, "0 errors") {
@@ -347,7 +365,7 @@ func TestLintWikiOnlyChecksStructureWithoutSources(t *testing.T) {
 	}
 	// The wiki repository checked out alone: no wiki.toml, no sources.
 	repo := filepath.Join(resolvePath(t.TempDir(), ""), "wiki-repo")
-	copyTree(t, filepath.Join(w.root, "knowledge"), repo)
+	copyTree(t, filepath.Join(w.root, "llm-wiki"), repo)
 	lint := func(dir string, env map[string]string, args ...string) result {
 		var out, errOut bytes.Buffer
 		code := Main(append([]string{"lint"}, args...), IO{Env: func(k string) string { return env[k] }, Dir: dir, Stdout: &out, Stderr: &errOut})
@@ -397,7 +415,7 @@ func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
 	w.writeConfig(w.read("wiki.toml") + "[sources.home]\nkind=\"documents\"\npath=\"~/hdocs\"\n")
 	w.ok("setup")
 	page := "---\ntype: policy\ntitle: Returns\ndescription: Return window\nowner: support-lead\nsources:\n  - ^[/notes/policy.md:1]\n---\nReturn within 14 days. ^[/notes/policy.md:1] Be kind. ^[/home/guide.md:1]\n"
-	must(t, os.WriteFile(filepath.Join(w.root, "knowledge/policies/returns.md"), []byte(page), 0o644))
+	must(t, os.WriteFile(filepath.Join(w.root, "llm-wiki/policies/returns.md"), []byte(page), 0o644))
 	w.ok("registry", "record")
 	at := func(dir, source string) result {
 		var out, errOut bytes.Buffer
@@ -423,7 +441,7 @@ func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
 		{w.root, "/notes/policy.md", "/notes/policy.md"},
 		{w.root, "raw/policy.md", "/notes/policy.md"},
 		{filepath.Join(w.root, "raw"), "policy.md", "/notes/policy.md"},
-		{filepath.Join(w.root, "knowledge"), "../raw/./policy.md", "/notes/policy.md"},
+		{filepath.Join(w.root, "llm-wiki"), "../raw/./policy.md", "/notes/policy.md"},
 		{t.TempDir(), filepath.Join(w.root, "raw", "policy.md"), "/notes/policy.md"},
 		{w.root, "~/hdocs/guide.md", "/home/guide.md"},
 		{w.root, filepath.Join(home, "hdocs", "guide.md"), "/home/guide.md"},
@@ -435,7 +453,7 @@ func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
 	if r := at(w.root, "/notes/absent.md"); r.code != 0 || strings.Contains(r.stdout, "policies/returns") {
 		t.Fatal("alias form of an uncited file", r)
 	}
-	for _, outside := range []string{"wiki.toml", filepath.Join(w.root, "knowledge", "policies", "returns.md"), "/nowhere/policy.md", "raw"} {
+	for _, outside := range []string{"wiki.toml", filepath.Join(w.root, "llm-wiki", "policies", "returns.md"), "/nowhere/policy.md", "raw"} {
 		if r := at(w.root, outside); r.code != 1 || !strings.Contains(r.stderr, "등록 원천 밖의 경로") {
 			t.Fatal(outside, r)
 		}
@@ -453,7 +471,7 @@ func TestSetupSkipsAlreadyRegisteredSources(t *testing.T) {
 	for _, c := range []struct{ spec, notice string }{
 		{"documents=raw", "이미 등록됨: documents raw (별칭 notes)"},
 		{"documents=./raw/", "이미 등록됨: documents ./raw/ (별칭 notes)"},
-		{"documents=knowledge/../raw", "(별칭 notes)"},
+		{"documents=llm-wiki/../raw", "(별칭 notes)"},
 		{"documents=" + filepath.Join(w.root, "raw"), "(별칭 notes)"},
 		{"documents:docs2=raw", "이미 등록됨: documents raw (별칭 notes). 별칭 docs2 는 추가하지 않음"},
 		{"claude=sessions", "이미 등록됨: claude sessions (별칭 claude-sessions)"},

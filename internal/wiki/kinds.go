@@ -129,13 +129,11 @@ func sourceBlock(alias, kind, path string) (string, error) {
 	return strings.Join(lines, "\n") + "\n", nil
 }
 
-const wikiBlock = `# Company Wiki workspace. Paths are relative to this file, or absolute / ~/ paths.
+const wikiBlock = `# Company Wiki. The layout is fixed: llm-wiki/ holds adopted knowledge only (concepts/, entities/,
+# policies/; citation hashes in llm-wiki/.verification/), workspace/wiki-changes/ holds drafts, reviews and decisions.
+# Source paths are absolute, ~/, or relative to this file.
 [wiki]
 title = "Company Wiki"
-# Adopted knowledge only: concepts/, entities/, policies/. Citation hashes live in <path>/.verification/.
-path = "llm-wiki"
-# Workspace outside the wiki: drafts, reviews, decisions.
-state = ".llm-wiki"
 reviewer = "human:owner"
 language = "ko"
 `

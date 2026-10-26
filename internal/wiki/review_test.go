@@ -29,13 +29,13 @@ func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	f := &fixture{t: t, repo: resolvePath(t.TempDir(), "")}
 	f.wiki = filepath.Join(f.repo, "docs", "wiki")
-	f.state = filepath.Join(f.repo, ".llm-wiki")
+	f.state = filepath.Join(f.repo, "workspace", "wiki-changes")
 	f.raw = filepath.Join(f.repo, "raw.md")
 	f.sessions = filepath.Join(f.repo, "sessions")
 	must(t, os.MkdirAll(f.wiki, 0o755))
 	must(t, os.MkdirAll(f.sessions, 0o755))
 	must(t, os.WriteFile(f.raw, []byte("actual evidence\nsecond line\n"), 0o644))
-	f.cfg = &Config{WikiRoot: f.wiki, RepoRoot: f.repo, StateRoot: f.state, Title: "Company Wiki", Reviewer: "human:owner",
+	f.cfg = &Config{WikiRoot: f.wiki, RepoRoot: f.repo, ChangesRoot: f.state, Title: "Company Wiki", Reviewer: "human:owner",
 		ExtraRoots: map[string]string{"claude-sessions": f.sessions, "codex-sessions": f.sessions}, RequiredSources: map[string]bool{}, RequiredKinds: map[string]bool{"documents": true}}
 	r, err := newReview(f.cfg, f.wiki, f.repo, f.state)
 	must(t, err)
@@ -186,7 +186,7 @@ func TestExactApprovalApplyReceiptAndIdempotence(t *testing.T) {
 		t.Fatal("records leaked into the wiki")
 	}
 	var receipt map[string]any
-	must(t, json.Unmarshal(readBytes(filepath.Join(f.state, "reviews/batch/applied.jsonl")), &receipt))
+	must(t, json.Unmarshal(readBytes(filepath.Join(f.state, "batch/applied.jsonl")), &receipt))
 	if receipt["decision_evidence"] != f.response["evidence"] {
 		t.Fatal(receipt)
 	}
@@ -424,23 +424,6 @@ func TestInsertedLineMarksCitationMovedNotChanged(t *testing.T) {
 	}
 }
 
-func TestLegacyWorkspaceRegistryIsReadUntilRewritten(t *testing.T) {
-	f := newFixture(t)
-	must(t, os.MkdirAll(f.state, 0o755))
-	must(t, os.WriteFile(filepath.Join(f.state, "registry.json"), []byte(`{"version":1,"pages":{"concepts/a":{"citations":{}}}}`), 0o644))
-	reg, err := f.cfg.loadRegistry()
-	must(t, err)
-	if _, ok := reg.Pages["concepts/a"]; !ok {
-		t.Fatal("legacy registry not read")
-	}
-	must(t, os.MkdirAll(filepath.Join(f.wiki, ".verification"), 0o755))
-	must(t, os.WriteFile(registryPath(f.wiki), []byte(`{"version":1,"pages":{}}`), 0o644))
-	reg, _ = f.cfg.loadRegistry()
-	if len(reg.Pages) != 0 {
-		t.Fatal("wiki registry not preferred")
-	}
-}
-
 func TestDependentsFollowImpactRelationsTransitively(t *testing.T) {
 	rel := func(target, kind string) any { return map[string]any{"target": target, "type": kind} }
 	pages := map[string]Frontmatter{
@@ -530,9 +513,9 @@ func TestOverlayResourcesUseProposedVersion(t *testing.T) {
 
 func TestReviewCitationsAreNotAuthoritative(t *testing.T) {
 	f := newFixture(t)
-	must(t, os.MkdirAll(filepath.Join(f.state, "reviews"), 0o755))
-	must(t, os.WriteFile(filepath.Join(f.state, "reviews/proposal.md"), []byte("speculative claim\n"), 0o644))
-	f.prepare("one", one("concepts/a.md", page("a", "^[/.llm-wiki/reviews/proposal.md:1]", "")), nil)
+	must(t, os.MkdirAll(f.state, 0o755))
+	must(t, os.WriteFile(filepath.Join(f.state, "proposal.md"), []byte("speculative claim\n"), 0o644))
+	f.prepare("one", one("concepts/a.md", page("a", "^[/workspace/wiki-changes/proposal.md:1]", "")), nil)
 	_, err := f.r.Preview("batch", []string{"one"})
 	wantErr(t, err, "검토 사본")
 }

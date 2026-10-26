@@ -1,8 +1,8 @@
 .DS_Store
 /dist/
-wiki.toml
+/wiki.toml
 /llm-wiki/
-/.llm-wiki/
+/workspace/
 /.claude/skills/
 /.agents/skills/
 .env

@@ -20,7 +20,8 @@ const usage = `company-wiki — LLM wiki of adopted knowledge (concepts, entitie
   company-wiki session <path> [--start N] [--end M] [--tools] [--max-chars N]
   company-wiki version
 
-wiki.toml is WIKI_CONFIG, or the nearest wiki.toml from the current folder upward.
+wiki.toml is WIKI_CONFIG, or the nearest wiki.toml from the current folder upward, or ~/company-wiki/wiki.toml.
+Next to it the layout is fixed: llm-wiki/ (the wiki) and workspace/wiki-changes/ (change materials).
 lint --wiki-only checks the current folder (or WIKI_ROOT) as the wiki without wiki.toml or sources,
 for the wiki repository's CI; cited files and registry hashes are reported as info.`
 

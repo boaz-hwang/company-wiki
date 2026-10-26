@@ -1,11 +1,10 @@
-# Reference for every option. company-wiki setup writes wiki.toml with the sources you select;
+# Reference for every option. company-wiki setup writes ~/company-wiki/wiki.toml with the sources you select;
 # this file's own documents source points to the bundled examples.
+# The layout next to wiki.toml is fixed and has no settings: llm-wiki/ is the wiki (adopted knowledge only:
+# concepts/, entities/, policies/, index.md, SCHEMA.md, citation hashes in .verification/), and
+# workspace/wiki-changes/ holds change materials (drafts, reviews, decisions) outside the wiki.
 [wiki]
 title = "Company Wiki"
-# Adopted knowledge only: concepts/, entities/, policies/, index.md, SCHEMA.md.
-path = "llm-wiki"
-# Workspace outside the wiki: drafts, reviews, decisions. Citation hashes live in <path>/.verification/.
-state = ".llm-wiki"
 reviewer = "human:owner"
 language = "ko"
 

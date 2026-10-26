@@ -21,7 +21,7 @@ var (
 //
 //	error   : missing or broken frontmatter, missing type·title·description·owner, wrong type or folder,
 //	          wikilinks or related targets that do not exist, unknown relation types or evidence,
-//	          missing sources, citations to missing files or lines, citations of the workspace
+//	          missing sources, citations to missing files or lines, citations of change materials
 //	warning : registered source folder missing, changed or moved cited lines, expired sessions,
 //	          orphan pages, placeholders, duplicate titles, status/history fields, stale index.md
 //	info    : citations without a recorded hash, contradicts relations, pages over 200 lines
@@ -56,7 +56,7 @@ func Lint(c *Config, out io.Writer) int {
 			warns = append(warns, fmt.Sprintf("wiki.toml: 원천 `%s` 경로 없음 `%s`", s.Alias, root))
 		}
 	}
-	stateRoot := resolvePath(c.StateRoot, "")
+	changesRoot := resolvePath(c.ChangesRoot, "")
 
 	for _, p := range pages {
 		rel := p.Slug + ".md"
@@ -150,8 +150,8 @@ func Lint(c *Config, out io.Writer) int {
 				errs = append(errs, fmt.Sprintf("%s: %v", rel, err))
 				continue
 			}
-			if within(f, stateRoot) {
-				errs = append(errs, fmt.Sprintf("%s: 작업 공간(검토 사본 등)을 정식 지식 근거로 인용함 `%s`", rel, s.Path))
+			if within(f, changesRoot) {
+				errs = append(errs, fmt.Sprintf("%s: 변경 절차 자료(검토 사본 등)를 정식 지식 근거로 인용함 `%s`", rel, s.Path))
 				continue
 			}
 			if !exists(f) {
@@ -253,8 +253,8 @@ func WikiOnlyConfig(env Env, dir string) *Config {
 	if v := env("WIKI_ROOT"); v != "" {
 		root = resolvePath(expandUser(v), root)
 	}
-	// Citations are not resolved, so the workspace and state roots are never read.
-	return &Config{Workspace: root, RepoRoot: root, WikiRoot: root, ExtraRoots: map[string]string{},
+	// Citations are not resolved, so the configuration root and change materials are never read.
+	return &Config{Root: root, RepoRoot: root, WikiRoot: root, ExtraRoots: map[string]string{},
 		RegistryOverride: registryPath(root), WikiOnly: true}
 }
 

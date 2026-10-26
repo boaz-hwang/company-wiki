@@ -18,15 +18,15 @@ README 시작 프롬프트에서 프로젝트 이름을 “가상 상점”, 문
 
 ## 결과물
 
-[`wiki-en/`](wiki-en/)에는 채택된 지식만 있다. [`wiki-en-workspace/`](wiki-en-workspace/)는 작업 공간(보통 숨김 폴더 `.llm-wiki/`)인데, 예제에서는 볼 수 있게 드러내 두었다.
+[`en/`](en/)은 회사 위키 루트의 고정 구조다. 설정 [`en/wiki.toml`](en/wiki.toml), 채택된 지식만 있는 위키 [`en/llm-wiki/`](en/llm-wiki/), 변경 절차 폴더 [`en/workspace/wiki-changes/`](en/workspace/wiki-changes/)가 있다. 설정은 `raw-en/`을 documents 원천으로 등록한다.
 
 | 경로 | 내용 |
 |---|---|
-| `wiki-en/policies/customer-service/return-window.md` | 정책: 배송 후 14일, 주문 제작 예외. 규칙마다 원문 줄 인용, 담당자, index용 `answers` 질문 |
-| `wiki-en/concepts/change-of-mind-return.md` | 정책이 적용되는 개념. 근거가 붙은 `applies_to` 관계로 연결 |
-| `wiki-en/index.md` | 생성된 입구: 질문 → 페이지, 폴더별 목록(담당자·별칭·관계), 관계 표 |
-| `wiki-en/.verification/registry.json` | 채택 시점의 인용 줄 해시. `returns.md`가 바뀌면 lint와 `company-wiki registry`가 그 원문을 인용한 페이지를 알린다 |
-| `wiki-en-workspace/reviews/2026-10-08-policy-change/` | `policy-change.md` 변경안. `company-wiki review prepare`로 고정했고 결정 대기 중 |
+| `en/llm-wiki/policies/customer-service/return-window.md` | 정책: 배송 후 14일, 주문 제작 예외. 규칙마다 원문 줄 인용, 담당자, index용 `answers` 질문 |
+| `en/llm-wiki/concepts/change-of-mind-return.md` | 정책이 적용되는 개념. 근거가 붙은 `applies_to` 관계로 연결 |
+| `en/llm-wiki/index.md` | 생성된 입구: 질문 → 페이지, 폴더별 목록(담당자·별칭·관계), 관계 표 |
+| `en/llm-wiki/.verification/registry.json` | 채택 시점의 인용 줄 해시. `returns.md`가 바뀌면 lint와 `company-wiki registry`가 그 원문을 인용한 페이지를 알린다 |
+| `en/workspace/wiki-changes/2026-10-08-policy-change/` | `policy-change.md` 변경안. `company-wiki review prepare`로 고정했고 결정 대기 중 |
 
 에이전트가 할 질문 예시:
 
@@ -37,7 +37,7 @@ README 시작 프롬프트에서 프로젝트 이름을 “가상 상점”, 문
 저장소 루트에서 직접 확인:
 
 ```bash
-WIKI_CONFIG=examples/wiki-en.toml company-wiki lint
-WIKI_CONFIG=examples/wiki-en.toml company-wiki registry --all
-WIKI_CONFIG=examples/wiki-en.toml company-wiki review preview 2026-10-08-policy-change policy-change
+WIKI_CONFIG=examples/en/wiki.toml company-wiki lint
+WIKI_CONFIG=examples/en/wiki.toml company-wiki registry --all
+WIKI_CONFIG=examples/en/wiki.toml company-wiki review preview 2026-10-08-policy-change policy-change
 ```

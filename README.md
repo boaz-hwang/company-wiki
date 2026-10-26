@@ -17,22 +17,25 @@ Company Wiki is a restructured fork of [BOAZ Wiki](https://github.com/boaz-hwang
 ## What the wiki holds
 
 ```text
-llm-wiki/                  adopted knowledge only (your Git repository or a folder)
-├── SCHEMA.md              rules for this wiki
-├── .verification/         citation checks, not knowledge (hidden in Obsidian)
-│   └── registry.json      cited-line hashes at adoption time, committed so the team and CI share them
-├── index.md               generated entry point
-├── concepts/              what things mean: concepts, definitions, principles, models
-├── entities/              what exists: identity, attributes, stable relations
-│   ├── products/
-│   └── organizations/
-└── policies/              how we decide and act: strategy, rules, criteria
-    ├── product/
-    └── engineering/
-
-.llm-wiki/                 workspace, not knowledge (hidden in Obsidian)
-└── reviews/<batch>/       drafts, review versions, decisions, receipts, inventory
+~/company-wiki/                one per machine, fixed (Windows: %USERPROFILE%\company-wiki)
+├── wiki.toml                  sources and reviewer
+├── llm-wiki/                  the wiki: adopted knowledge only (a shared Git repository)
+│   ├── SCHEMA.md              rules for this wiki
+│   ├── .verification/         citation checks, not knowledge (hidden in Obsidian)
+│   │   └── registry.json      cited-line hashes at adoption time, committed so the team and CI share them
+│   ├── index.md               generated entry point
+│   ├── concepts/              what things mean: concepts, definitions, principles, models
+│   ├── entities/              what exists: identity, attributes, stable relations
+│   │   ├── products/
+│   │   └── organizations/
+│   └── policies/              how we decide and act: strategy, rules, criteria
+│       ├── product/
+│       └── engineering/
+└── workspace/                 your own vault: an existing folder, a link to your Obsidian vault, or a new folder
+    └── wiki-changes/          change materials, not knowledge: drafts, review versions, decisions, receipts, inventory
 ```
+
+Change materials live outside the wiki repository, so undecided material cannot be committed into the wiki by mistake; apply copies only the decided version into `llm-wiki/`.
 
 Subfolders are free; the top-level folder sets the page type, so you do not add new top-level folders as the organization grows.
 
@@ -165,7 +168,7 @@ Setup copies the 4 skills bundled in the binary into the project's `.claude/skil
 
 ## Configuration
 
-Setup writes `wiki.toml` with the sources you selected; [wiki.example.toml](wiki.example.toml) shows every option. `[wiki] path` is the wiki folder (default `llm-wiki`), `state` is the workspace (default `.llm-wiki`); they must be separate. Register each source with its path and kind. Relative paths resolve from the config file. Select another workspace with `WIKI_CONFIG=/path/to/wiki.toml`.
+Setup writes `wiki.toml` with the sources you selected; [wiki.example.toml](wiki.example.toml) shows every option. The layout is fixed: the wiki is always `llm-wiki/` and change materials are always `workspace/wiki-changes/` next to `wiki.toml`; there are no path settings for them (a `wiki.toml` that still has `[wiki] path` or `state` is rejected). Register each source with its path and kind. Relative source paths resolve from the config file.
 
 - **Kinds:** `documents`, `code`, `slack`, `jira`, `notion`, `confluence`, `claude`, `codex`. Personal collections such as web clippings are not sources.
 - **Docs and code:** file/line citations for Markdown, MDX, and source files. Convert other formats to readable text first.
@@ -174,17 +177,17 @@ Setup writes `wiki.toml` with the sources you selected; [wiki.example.toml](wiki
 - **Memory, Git, other agents:** read as leads to originals and user statements.
 - **Source scope:** include/exclude are instructions for the agent, not a sandbox.
 
-The CLI does not call an LLM. A passing check does not prove the content is right; the owner's approval does that. Local `wiki.toml`, `llm-wiki/`, and `.llm-wiki/` are git-ignored in this tool repository. Keep your wiki in its own repository and decide its visibility first.
+The CLI does not call an LLM. A passing check does not prove the content is right; the owner's approval does that. Keep the wiki (`llm-wiki/`) in its own repository and decide its visibility first; `wiki.toml` and `workspace/` stay on your machine.
 
-Commands find `wiki.toml` from the current folder upward; `WIKI_CONFIG=/path/to/wiki.toml` selects another. On Windows, write paths in `wiki.toml` with single quotes.
+Commands use `WIKI_CONFIG=/path/to/wiki.toml` if set, else the nearest `wiki.toml` from the current folder upward, else `~/company-wiki/wiki.toml`, so they work from any folder. On Windows, write paths in `wiki.toml` with single quotes.
 
 ## Example and checks
 
 The [fictional returns policy example](examples/README.md) has a policy, a concept, a typed relation, a registry, and a pending change proposal.
 
 ```bash
-WIKI_CONFIG=examples/wiki-en.toml company-wiki lint
-WIKI_CONFIG=examples/wiki-en.toml company-wiki registry
+WIKI_CONFIG=examples/en/wiki.toml company-wiki lint
+WIKI_CONFIG=examples/en/wiki.toml company-wiki registry
 go test ./...      # tool development
 ```
 

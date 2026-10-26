@@ -6,7 +6,7 @@
     }
   },
   "dependencies": {
-    "/wiki-en/concepts/change-of-mind-return.md": "6f6da866891ec2410e1414551aa9cf744b3fed8888303bff0dc2b704251344eb",
+    "/llm-wiki/concepts/change-of-mind-return.md": "6f6da866891ec2410e1414551aa9cf744b3fed8888303bff0dc2b704251344eb",
     "^[/documents/policy-change.md:2-4]": "bd389b14ba05af1084f3ed2e46c804136b7ce87080003ffcc4ab1f0ff7ca5f22",
     "^[/documents/policy-change.md:2]": "6f72014e89323d5183ad25b7e7b7d9edac5b54dddbe95052845d35816c05924f",
     "^[/documents/policy-change.md:3]": "30f53c5aa7cfa816cc903e03c200b2fe4440ff1deef35cbd3904710f9e296650",
@@ -15,6 +15,6 @@
     "^[/documents/returns.md:2]": "0e9f34aa9b19020cdc4e17c756bd5f4b2c819a3a04879f465da643b4c6c1290c",
     "^[/documents/returns.md:3]": "8c48ae0f2e2c037167d32404c2e5fc585084fdf1ec00efb115c6aea66409b752"
   },
-  "revision": "4a4b7a86e44f324c4007ee37317a7f20273db5bade79de4d18fef84316bb3471",
-  "created": "2026-10-24T14:34:52+00:00"
+  "revision": "b90b112d867e4d1b05ecf3e8475eaafeb805897444eb45416a13d5bb56345dd4",
+  "created": "2026-10-26T01:32:56+00:00"
 }

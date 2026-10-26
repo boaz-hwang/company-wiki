@@ -17,11 +17,11 @@ import (
 //
 // It is the approval path for agent proposals: the owner answers in the session, decide records that
 // answer and apply writes the approved version, which is then committed to the wiki repository's main.
-// Review records live in the workspace (wiki.state), never inside the wiki.
+// Review records live in the change materials folder (workspace/wiki-changes), never inside the wiki.
 type Review struct {
-	cfg                     *Config
-	wiki, repo, state, root string
-	journal                 string
+	cfg                       *Config
+	wiki, repo, changes, root string
+	journal                   string
 	// write is replaceable so tests can simulate a failed write.
 	write func(path string, data []byte) error
 }
@@ -35,15 +35,16 @@ var (
 
 // NewReview opens the review workspace for cfg.
 func NewReview(cfg *Config) (*Review, error) {
-	return newReview(cfg, cfg.WikiRoot, cfg.RepoRoot, cfg.StateRoot)
+	return newReview(cfg, cfg.WikiRoot, cfg.RepoRoot, cfg.ChangesRoot)
 }
 
-func newReview(cfg *Config, wiki, repo, state string) (*Review, error) {
-	r := &Review{cfg: cfg, wiki: resolvePath(wiki, ""), repo: resolvePath(repo, ""), state: resolvePath(state, ""), write: atomicWrite}
-	if r.state == r.wiki || within(r.state, r.wiki) || within(r.wiki, r.state) {
-		return nil, errors.New("상태 폴더(wiki.state)는 위키 폴더와 분리한다")
+func newReview(cfg *Config, wiki, repo, changes string) (*Review, error) {
+	r := &Review{cfg: cfg, wiki: resolvePath(wiki, ""), repo: resolvePath(repo, ""), changes: resolvePath(changes, ""), write: atomicWrite}
+	if r.changes == r.wiki || within(r.changes, r.wiki) || within(r.wiki, r.changes) {
+		return nil, errors.New("변경 절차 폴더(workspace/wiki-changes)는 위키 폴더와 분리한다")
 	}
-	r.root = filepath.Join(r.state, "reviews")
+	// Batches sit directly in the change materials folder: <batch>/topics/<topic>/rNNNN, decisions.jsonl, applied.jsonl.
+	r.root = r.changes
 	r.journal = filepath.Join(r.root, "apply-journal.json")
 	return r, nil
 }
@@ -996,7 +997,7 @@ func (r *Review) preview(batch string, topics []string, requireApproval bool) (*
 	}
 	prefix, _ := filepath.Rel(r.repo, r.wiki)
 	view := *r.cfg
-	view.WikiRoot, view.StateRoot, view.RepoRoot = root, r.state, r.repo
+	view.WikiRoot, view.ChangesRoot, view.RepoRoot = root, r.changes, r.repo
 	view.RegistryOverride, view.ResourcePrefix = regPath, filepath.ToSlash(prefix)
 	n, err := BuildIndex(&view)
 	if err != nil {
@@ -1015,7 +1016,7 @@ func (r *Review) preview(batch string, topics []string, requireApproval bool) (*
 // registryAfter records cited-line hashes for the pages being applied; other pages keep their records.
 func (r *Review) registryAfter(writes map[string][]byte, revisions map[string]string) ([]byte, error) {
 	view := *r.cfg
-	view.WikiRoot, view.StateRoot, view.RegistryOverride = r.wiki, r.state, ""
+	view.WikiRoot, view.ChangesRoot, view.RegistryOverride = r.wiki, r.changes, ""
 	reg, err := view.loadRegistry()
 	if err != nil {
 		return nil, err
@@ -1056,16 +1057,16 @@ func (r *Review) registryAfter(writes map[string][]byte, revisions map[string]st
 	return jsonIndent(reg)
 }
 
-// target maps a journal key, wiki/<path> or state/<path>, to a file.
+// target maps a journal key, wiki/<path> or changes/<path>, to a file.
 func (r *Review) target(key string) (string, error) {
 	head, rel, _ := strings.Cut(key, "/")
-	if (head != "wiki" && head != "state") || rel == "" {
+	if (head != "wiki" && head != "changes") || rel == "" {
 		return "", fmt.Errorf("잘못된 반영 대상: %s", key)
 	}
 	if head == "wiki" {
 		return safe(r.wiki, rel)
 	}
-	return safe(r.state, rel)
+	return safe(r.changes, rel)
 }
 
 func samePages(a, b map[string][]byte) bool {
@@ -1134,7 +1135,7 @@ func (r *Review) Apply(batch string, topics []string) (string, error) {
 			keys: []string{"topic", "revision", "at", "files", "decision_evidence"}}
 		receipts = append(receipts, []byte(pyJSON(receipt, false)+"\n")...)
 	}
-	writes = append(writes, write{"state/reviews/" + batch + "/applied.jsonl", receipts})
+	writes = append(writes, write{"changes/" + batch + "/applied.jsonl", receipts})
 	journal := &omap{m: map[string]any{}}
 	for _, w := range writes {
 		t, err := r.target(w.key)

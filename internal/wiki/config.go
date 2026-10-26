@@ -24,18 +24,28 @@ type Source struct {
 	Enabled           bool
 }
 
-// Config is the resolved workspace configuration.
+// The layout under the configuration folder is fixed: the wiki and the change materials.
+const (
+	rootName = "company-wiki"
+	wikiDir  = "llm-wiki"
+)
+
+// changesDir holds drafts, review versions, decisions, receipts and inventories, outside the wiki.
+var changesDir = filepath.Join("workspace", "wiki-changes")
+
+// Config is the resolved configuration.
 type Config struct {
-	Path      string // wiki.toml
-	Exists    bool
-	Workspace string
-	RepoRoot  string
-	WikiRoot  string
-	// Rules, registry and reviews are not knowledge; drafts and records live outside the wiki folder.
-	StateRoot string
-	Title     string
-	Reviewer  string
-	Sources   []Source
+	Path   string // wiki.toml
+	Exists bool
+	// Root is the folder of wiki.toml (normally ~/company-wiki).
+	Root     string
+	RepoRoot string
+	WikiRoot string // Root/llm-wiki
+	// ChangesRoot is Root/workspace/wiki-changes: change materials are not knowledge and never live in the wiki.
+	ChangesRoot string
+	Title       string
+	Reviewer    string
+	Sources     []Source
 	// ExtraRoots maps an enabled source alias to its folder.
 	ExtraRoots      map[string]string
 	RequiredSources map[string]bool
@@ -47,7 +57,16 @@ type Config struct {
 	WikiOnly bool
 }
 
-// FindConfig returns WIKI_CONFIG, or the nearest wiki.toml from dir upward, or dir/wiki.toml.
+// DefaultRoot is the machine's company wiki root, ~/company-wiki (Windows: %USERPROFILE%\company-wiki).
+func DefaultRoot() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("home folder not found: %w", err)
+	}
+	return resolvePath(filepath.Join(home, rootName), ""), nil
+}
+
+// FindConfig returns WIKI_CONFIG, or the nearest wiki.toml from dir upward, or ~/company-wiki/wiki.toml.
 func FindConfig(env Env, dir string) (string, bool, error) {
 	if v := env("WIKI_CONFIG"); v != "" {
 		p := resolvePath(expandUser(v), dir)
@@ -62,7 +81,11 @@ func FindConfig(env Env, dir string) (string, bool, error) {
 			break
 		}
 	}
-	return filepath.Join(resolvePath(dir, ""), "wiki.toml"), false, nil
+	root, err := DefaultRoot()
+	if err != nil {
+		return "", false, err
+	}
+	return filepath.Join(root, "wiki.toml"), false, nil
 }
 
 // LoadConfig reads the configuration for a command run in dir.
@@ -85,7 +108,7 @@ func LoadConfig(env Env, dir string) (*Config, error) {
 			return nil, err
 		}
 	}
-	c := &Config{Path: path, Exists: exists, Workspace: filepath.Dir(path)}
+	c := &Config{Path: path, Exists: exists, Root: resolvePath(filepath.Dir(path), "")}
 	section, _ := data["wiki"].(map[string]any)
 	get := func(key, fallback string) string {
 		if v, ok := section[key].(string); ok {
@@ -93,15 +116,15 @@ func LoadConfig(env Env, dir string) (*Config, error) {
 		}
 		return fallback
 	}
-	at := func(envKey, value string) string {
-		if v := env(envKey); v != "" {
-			value = v
+	c.RepoRoot = c.Root
+	c.WikiRoot = resolvePath(wikiDir, c.Root)
+	c.ChangesRoot = resolvePath(changesDir, c.Root)
+	for _, key := range []string{"path", "state"} {
+		if _, ok := section[key]; ok {
+			return nil, fmt.Errorf("%s: [wiki] path and state are no longer supported; the layout is fixed: wiki %s, change materials %s. "+
+				"Remove these keys and move the folders there", path, filepath.Join(c.Root, wikiDir), filepath.Join(c.Root, changesDir))
 		}
-		return resolvePath(expandUser(value), c.Workspace)
 	}
-	c.RepoRoot = at("WIKI_REPO_ROOT", ".")
-	c.WikiRoot = at("WIKI_ROOT", get("path", "llm-wiki"))
-	c.StateRoot = at("WIKI_STATE", get("state", ".llm-wiki"))
 	c.Title = get("title", "Company Wiki")
 	c.Reviewer = get("reviewer", "human:owner")
 	if !reviewerRE.MatchString(c.Reviewer) {
@@ -132,15 +155,15 @@ func LoadConfig(env Env, dir string) (*Config, error) {
 		}
 		c.Sources = append(c.Sources, Source{Alias: alias, Kind: kind, Path: p, Enabled: enabled})
 		if enabled {
-			c.ExtraRoots[alias] = resolvePath(expandUser(p), c.Workspace)
+			c.ExtraRoots[alias] = resolvePath(expandUser(p), c.Root)
 			c.RequiredSources[alias] = true
 			c.RequiredKinds[kind] = true
 		}
 	}
-	// Legacy environment overrides keep isolated fixture tests portable.
+	// Test-only overrides keep isolated session fixtures portable; not a user setting.
 	for alias, key := range map[string]string{"claude-sessions": "WIKI_CLAUDE_SESSIONS_DIR", "codex-sessions": "WIKI_CODEX_SESSIONS_DIR"} {
 		if v := env(key); v != "" {
-			c.ExtraRoots[alias] = resolvePath(expandUser(v), c.Workspace)
+			c.ExtraRoots[alias] = resolvePath(expandUser(v), c.Root)
 		}
 	}
 	if len(c.RequiredKinds) == 0 {

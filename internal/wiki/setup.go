@@ -2,7 +2,6 @@ package wiki
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -162,7 +161,7 @@ func Setup(args []string, x IO) int {
 		fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(x.Stdout, "Workspace ready: %s (state: %s)\n", c.WikiRoot, c.StateRoot)
+	fmt.Fprintf(x.Stdout, "Wiki ready: %s (change materials: %s)\n", c.WikiRoot, c.ChangesRoot)
 	for _, s := range c.Sources {
 		mark := ""
 		if root, ok := c.ExtraRoots[s.Alias]; ok && !exists(root) {
@@ -295,20 +294,15 @@ func askSources(x IO, base string) ([]sourceSpec, error) {
 }
 
 func prepareWorkspace(c *Config, out io.Writer) error {
-	for _, d := range []struct{ name, root string }{{"wiki.path", c.WikiRoot}, {"wiki.state", c.StateRoot}} {
-		if !within(d.root, c.RepoRoot) || d.root == c.RepoRoot {
-			return fmt.Errorf("%s must be a subdirectory of the workspace", d.name)
-		}
-	}
-	if within(c.StateRoot, c.WikiRoot) || within(c.WikiRoot, c.StateRoot) {
-		return errors.New("wiki.state must be separate from wiki.path; drafts and records are not adopted knowledge")
+	if within(c.ChangesRoot, c.WikiRoot) || within(c.WikiRoot, c.ChangesRoot) {
+		return fmt.Errorf("change materials (%s) must be separate from the wiki (%s); drafts and records are not adopted knowledge", c.ChangesRoot, c.WikiRoot)
 	}
 	for _, folder := range folderOrder {
 		if err := os.MkdirAll(filepath.Join(c.WikiRoot, folder), 0o755); err != nil {
 			return err
 		}
 	}
-	if err := os.MkdirAll(filepath.Join(c.StateRoot, "reviews"), 0o755); err != nil {
+	if err := os.MkdirAll(c.ChangesRoot, 0o755); err != nil {
 		return err
 	}
 	schema := filepath.Join(c.WikiRoot, "SCHEMA.md")
@@ -338,12 +332,12 @@ func prepareWorkspace(c *Config, out io.Writer) error {
 				continue
 			}
 			src, _ := fs.Sub(companywiki.Assets, path.Join("skills", s.Name()))
-			if err := installSkill(src, filepath.Join(c.Workspace, provider, "skills", s.Name()), out); err != nil {
+			if err := installSkill(src, filepath.Join(c.Root, provider, "skills", s.Name()), out); err != nil {
 				return err
 			}
 		}
 	}
-	if isToolkitRepo(c.Workspace) {
+	if isToolkitRepo(c.Root) {
 		return nil
 	}
 	return writePointer(c)
@@ -405,10 +399,10 @@ var pointerRE = regexp.MustCompile(`(?s)\n?<!-- (?:llm|boaz|company)-wiki -->.*?
 
 // writePointer adds or refreshes the wiki block in the workspace AGENTS.md.
 func writePointer(c *Config) error {
-	pointer := fmt.Sprintf("\n<!-- company-wiki -->\nWiki rules: %s. Read %s first. Drafts and records: %s.\n"+
+	pointer := fmt.Sprintf("\n<!-- company-wiki -->\nWiki rules: %s. Read %s first. Change materials (drafts, reviews, decisions): %s.\n"+
 		"Tool: the company-wiki CLI (setup, lint, index, registry, review, inventory, session). Config: %s.\n<!-- /company-wiki -->\n",
-		filepath.Join(c.WikiRoot, "SCHEMA.md"), filepath.Join(c.WikiRoot, "index.md"), c.StateRoot, c.Path)
-	target := filepath.Join(c.Workspace, "AGENTS.md")
+		filepath.Join(c.WikiRoot, "SCHEMA.md"), filepath.Join(c.WikiRoot, "index.md"), c.ChangesRoot, c.Path)
+	target := filepath.Join(c.Root, "AGENTS.md")
 	old := ""
 	if b, err := os.ReadFile(target); err == nil {
 		old = strings.TrimPrefix(string(b), "\ufeff")

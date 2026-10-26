@@ -19,21 +19,27 @@ jobs:
         shell: bash
         run: |
           go build -o company-wiki ./cmd/company-wiki
-          WIKI_CONFIG=examples/wiki-en.toml ./company-wiki lint
-          WIKI_CONFIG=examples/wiki-en.toml ./company-wiki registry
-          WIKI_CONFIG=examples/wiki-en.toml ./company-wiki review status
-      - name: Windows PowerShell workspace smoke test
+          WIKI_CONFIG=examples/en/wiki.toml ./company-wiki lint
+          WIKI_CONFIG=examples/en/wiki.toml ./company-wiki registry
+          WIKI_CONFIG=examples/en/wiki.toml ./company-wiki review status
+      - name: Windows PowerShell setup smoke test
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           go build -o company-wiki.exe ./cmd/company-wiki
           $exe = (Resolve-Path .\company-wiki.exe).Path
-          $workspace = Join-Path $env:RUNNER_TEMP ('wiki-' + [guid]::NewGuid())
-          New-Item -ItemType Directory -Path (Join-Path $workspace 'docs') -Force | Out-Null
-          Push-Location $workspace
+          # A fresh home, so the runner's own profile and %USERPROFILE%\company-wiki are never touched.
+          $tmp = Join-Path $env:RUNNER_TEMP ('wiki-' + [guid]::NewGuid())
+          $env:USERPROFILE = Join-Path $tmp 'home'
+          $env:HOME = $env:USERPROFILE
+          $env:APPDATA = Join-Path $env:USERPROFILE 'AppData\Roaming'
+          $project = Join-Path $tmp 'project'
+          New-Item -ItemType Directory -Path (Join-Path $project 'docs'), $env:APPDATA -Force | Out-Null
+          Push-Location $project
           try {
-            & $exe setup --source documents=docs
+            & $exe setup --source ('documents=' + (Join-Path $project 'docs'))
             if ($LASTEXITCODE -ne 0) { throw 'setup failed' }
+            if (-not (Test-Path (Join-Path $env:USERPROFILE 'company-wiki\llm-wiki\index.md'))) { throw 'wiki not created' }
             & $exe lint
             if ($LASTEXITCODE -ne 0) { throw 'lint failed' }
             & $exe review status
@@ -42,5 +48,5 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'registry failed' }
           } finally {
             Pop-Location
-            Remove-Item -LiteralPath $workspace -Recurse -Force
+            Remove-Item -LiteralPath $tmp -Recurse -Force
           }

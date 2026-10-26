@@ -17,22 +17,25 @@ Claude Code나 Codex가 문서와 AI 세션 기록을 읽고, 조직이 실제�
 ## 위키에 들어가는 것
 
 ```text
-llm-wiki/                  채택된 지식만 (별도 Git 저장소 또는 폴더)
-├── SCHEMA.md              운영 규칙
-├── .verification/         인용 검증 기록, 지식 아님 (Obsidian에서 숨김)
-│   └── registry.json      채택 시점의 인용 줄 해시. 팀·CI가 공유하도록 위키와 함께 커밋
-├── index.md               생성되는 입구
-├── concepts/              무엇을 의미하는가: 개념·정의·원리·모델
-├── entities/              무엇이 존재하는가: 정체성·속성·안정적인 관계
-│   ├── products/
-│   └── organizations/
-└── policies/              어떻게 판단하고 행동하는가: 전략·정책·규칙·판단 기준
-    ├── product/
-    └── engineering/
-
-.llm-wiki/                 작업 공간, 지식 아님 (Obsidian에서 숨김)
-└── reviews/<batch>/       초안·검토 버전·결정·receipt·조사 기록
+~/company-wiki/                컴퓨터마다 하나, 고정 위치 (Windows: %USERPROFILE%\company-wiki)
+├── wiki.toml                  원천·검토자 설정
+├── llm-wiki/                  위키: 채택된 지식만 (공유 Git 저장소)
+│   ├── SCHEMA.md              운영 규칙
+│   ├── .verification/         인용 검증 기록, 지식 아님 (Obsidian에서 숨김)
+│   │   └── registry.json      채택 시점의 인용 줄 해시. 팀·CI가 공유하도록 위키와 함께 커밋
+│   ├── index.md               생성되는 입구
+│   ├── concepts/              무엇을 의미하는가: 개념·정의·원리·모델
+│   ├── entities/              무엇이 존재하는가: 정체성·속성·안정적인 관계
+│   │   ├── products/
+│   │   └── organizations/
+│   └── policies/              어떻게 판단하고 행동하는가: 전략·정책·규칙·판단 기준
+│       ├── product/
+│       └── engineering/
+└── workspace/                 개인 Vault: 기존 폴더, Obsidian Vault 링크, 또는 새 폴더
+    └── wiki-changes/          변경 절차 폴더, 지식 아님: 초안·검토 버전·결정·receipt·조사 기록
 ```
+
+변경 절차 자료는 위키 저장소 밖에 있으므로 결정 전 자료가 실수로 위키에 커밋되지 않습니다. apply는 결정된 버전만 `llm-wiki/`에 복사합니다.
 
 하위 폴더는 자유롭게 둡니다. 최상위 폴더가 페이지 type을 정하므로 조직이 커져도 최상위 폴더는 늘지 않습니다.
 
@@ -162,7 +165,7 @@ setup이 바이너리에 들어 있는 스킬 4개를 프로젝트의 `.claude/s
 
 ## 설정
 
-setup이 고른 원천으로 `wiki.toml`을 만듭니다. 모든 옵션은 [wiki.example.toml](wiki.example.toml)에 있습니다. `[wiki] path`는 위키 폴더(기본 `llm-wiki`), `state`는 작업 공간(기본 `.llm-wiki`)이며 서로 분리돼야 합니다. 원천은 경로와 kind로 등록합니다. 상대 경로는 설정 파일 기준이고, 다른 작업 공간은 `WIKI_CONFIG=/path/to/wiki.toml`로 고릅니다.
+setup이 고른 원천으로 `wiki.toml`을 만듭니다. 모든 옵션은 [wiki.example.toml](wiki.example.toml)에 있습니다. 위치는 고정입니다. 위키는 항상 `wiki.toml` 옆의 `llm-wiki/`, 변경 절차 자료는 항상 `workspace/wiki-changes/`이며 경로 설정은 없습니다(`[wiki] path`·`state`가 남은 `wiki.toml`은 거부). 원천은 경로와 kind로 등록합니다. 원천의 상대 경로는 설정 파일 기준입니다.
 
 - **kind:** `documents`·`code`·`slack`·`jira`·`notion`·`confluence`·`claude`·`codex`. 개인 웹 클리핑 같은 개인 수집 자료는 원천이 아닙니다.
 - **문서·코드:** Markdown·MDX·소스 파일의 파일/줄 인용. 다른 형식은 읽을 수 있는 텍스트로 먼저 변환합니다.
@@ -171,17 +174,17 @@ setup이 고른 원천으로 `wiki.toml`을 만듭니다. 모든 옵션은 [wiki
 - **메모리·Git·다른 에이전트:** 원문과 사용자 발언을 찾는 단서로 읽습니다.
 - **원천 범위:** include/exclude는 에이전트에 대한 지시이며 샌드박스가 아닙니다.
 
-CLI는 LLM을 호출하지 않습니다. 검사 통과가 내용의 정확성을 증명하지는 않으며, 그것은 담당자 승인이 맡습니다. 이 도구 저장소에서는 로컬 `wiki.toml`, `llm-wiki/`, `.llm-wiki/`를 Git에서 제외합니다. 위키는 별도 저장소에 두고 공개 범위를 먼저 정하세요.
+CLI는 LLM을 호출하지 않습니다. 검사 통과가 내용의 정확성을 증명하지는 않으며, 그것은 담당자 승인이 맡습니다. 위키(`llm-wiki/`)는 별도 저장소에 두고 공개 범위를 먼저 정하세요. `wiki.toml`과 `workspace/`는 각자의 컴퓨터에 남습니다.
 
-명령은 현재 폴더부터 위로 `wiki.toml`을 찾고, `WIKI_CONFIG=/path/to/wiki.toml`로 다른 설정을 고를 수 있습니다. Windows 경로는 `wiki.toml`에 작은따옴표로 씁니다.
+명령은 `WIKI_CONFIG=/path/to/wiki.toml`이 있으면 그것을, 없으면 현재 폴더부터 위로 찾은 `wiki.toml`을, 그것도 없으면 `~/company-wiki/wiki.toml`을 쓰므로 어느 폴더에서나 동작합니다. Windows 경로는 `wiki.toml`에 작은따옴표로 씁니다.
 
 ## 예제와 검사
 
 [가상 반품 정책 예제](examples/README.ko.md)에 정책·개념·타입 관계·레지스트리·결정 대기 중인 변경안이 있습니다.
 
 ```bash
-WIKI_CONFIG=examples/wiki-en.toml company-wiki lint
-WIKI_CONFIG=examples/wiki-en.toml company-wiki registry
+WIKI_CONFIG=examples/en/wiki.toml company-wiki lint
+WIKI_CONFIG=examples/en/wiki.toml company-wiki registry
 go test ./...      # 도구 개발
 ```
 

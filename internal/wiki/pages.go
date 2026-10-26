@@ -320,15 +320,11 @@ func registryPath(wiki string) string {
 	return filepath.Join(wiki, verificationDir, "registry.json")
 }
 
-// loadRegistry reads the wiki's registry, or the legacy workspace registry until it is rewritten.
+// loadRegistry reads the wiki's registry.
 func (c *Config) loadRegistry() (*Registry, error) {
 	p := c.RegistryOverride
 	if p == "" {
 		p = registryPath(c.WikiRoot)
-		legacy := filepath.Join(c.StateRoot, "registry.json")
-		if !exists(p) && exists(legacy) {
-			p = legacy
-		}
 	}
 	reg := &Registry{Version: 1, Pages: map[string]*PageRecord{}}
 	data, err := os.ReadFile(p)
