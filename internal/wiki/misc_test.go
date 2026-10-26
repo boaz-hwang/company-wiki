@@ -3,12 +3,15 @@ package wiki
 import (
 	"bytes"
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
+
+	companywiki "github.com/boaz-hwang/company-wiki"
 )
 
 func inventoryConfig() *Config {
@@ -85,6 +88,18 @@ func TestInventoryRules(t *testing.T) {
 		if _, err := ValidateInventory(c, d); err == nil {
 			t.Fatal(period)
 		}
+	}
+	for key, value := range map[string]any{"last_apply": map[string]any{"path": "applied.jsonl", "at": "2026-09-01T00:00:00Z"}, "last_full_review": "  "} {
+		d = clone(inventoryRecord(c))
+		d["basis"].(map[string]any)[key] = value
+		if _, err := ValidateInventory(c, d); err == nil || !strings.Contains(err.Error(), "basis."+key+" must be a non-empty string") {
+			t.Fatal(key, err)
+		}
+	}
+	d = clone(inventoryRecord(c))
+	delete(d["basis"].(map[string]any), "last_full_review")
+	if _, err := ValidateInventory(c, d); err == nil || !strings.Contains(err.Error(), "basis.last_full_review") {
+		t.Fatal("missing basis field", err)
 	}
 	if _, err := ValidateInventory(c, map[string]any{"complete": true, "applied": []any{"client-a"}}); err == nil {
 		t.Fatal("legacy record accepted")
@@ -252,5 +267,24 @@ func TestCheckboxKeys(t *testing.T) {
 	}
 	if got := run(keyAbort); !eq(got, []int{-1}) {
 		t.Fatal("abort")
+	}
+}
+
+func TestInventoryDocExampleIsComplete(t *testing.T) {
+	doc, err := fs.ReadFile(companywiki.Assets, "skills/wiki-update/references/inventory.md")
+	must(t, err)
+	_, rest, ok := strings.Cut(string(doc), "```json\n")
+	block, _, closed := strings.Cut(rest, "```")
+	if !ok || !closed {
+		t.Fatal("no json example")
+	}
+	var data any
+	dec := json.NewDecoder(strings.NewReader(block))
+	dec.UseNumber()
+	must(t, dec.Decode(&data))
+	c := &Config{Sources: []Source{{Alias: "documents", Kind: "documents", Enabled: true}, {Alias: "claude-sessions", Kind: "claude", Enabled: true}},
+		RequiredSources: map[string]bool{"documents": true, "claude-sessions": true}, RequiredKinds: map[string]bool{"documents": true, "claude": true}}
+	if res, err := ValidateInventory(c, data); err != nil || !res.Complete {
+		t.Fatal(res, err)
 	}
 }

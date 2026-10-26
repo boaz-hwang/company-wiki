@@ -68,8 +68,11 @@ func ValidateInventory(c *Config, data any) (InventoryResult, error) {
 	if !ok {
 		return fail("basis must be an object")
 	}
-	if !nonempty(basis["last_apply"]) || !nonempty(basis["last_full_review"]) {
-		return fail("both boundary evidence notes required; unknown must be explicit")
+	// Each boundary is one note: evidence path, time and scope, or "unknown: <reason>".
+	for _, key := range []string{"last_apply", "last_full_review"} {
+		if !nonempty(basis[key]) {
+			return fail("basis.%s must be a non-empty string (evidence path·time·scope, or \"unknown: <reason>\")", key)
+		}
 	}
 	sources, ok := d["sources"].([]any)
 	if !ok {
