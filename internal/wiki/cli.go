@@ -78,7 +78,7 @@ func Main(args []string, x IO) int {
 		fmt.Fprintf(x.Stdout, "index.md: %d pages\n", n)
 		return 0
 	case "registry":
-		return RegistryCmd(c, rest, x.Stdout, x.Stderr)
+		return RegistryCmd(c, rest, x.Dir, x.Stdout, x.Stderr)
 	case "review":
 		return ReviewCmd(c, rest, x)
 	case "inventory":

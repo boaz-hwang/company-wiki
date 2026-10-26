@@ -143,11 +143,12 @@ Inspired by [Toss's typed, evidence-backed context relations](https://toss.tech/
 ```bash
 company-wiki registry                         # cited lines that changed, moved, expired, or are unrecorded, plus affected pages
 company-wiki registry --source /documents/x.md # which pages depend on this source
+company-wiki registry --source ../docs/x.md    # the same, by the file's path inside a registered source
 company-wiki registry --page concepts/x        # which pages are affected if this page changes
 company-wiki registry record concepts/x       # re-record after you re-checked a page
 ```
 
-`changed` means re-check the sentences and relations that cite those lines. `moved` means the content is the same but sits on other lines; fix the line numbers. Affected pages are found by following `depends_on`, `implements`, and `applies_to` relations backwards, transitively. `expired` means a session file was cleaned up (Claude Code keeps sessions for `cleanupPeriodDays`), so the evidence can no longer be re-checked; raise the retention or cite a result document instead. lint reports these as warnings; a missing document is an error.
+`changed` means re-check the sentences and relations that cite those lines. `moved` means the content is the same but sits on other lines; fix the line numbers. Affected pages are found by following `depends_on`, `implements`, and `applies_to` relations backwards, transitively. `expired` means a session file was cleaned up (Claude Code keeps sessions for `cleanupPeriodDays`), so the evidence can no longer be re-checked; raise the retention or cite a result document instead. lint reports these as warnings; a missing document is an error. `--source` takes the cited `/alias/path` form or a relative, absolute, or `~` path to a file inside a registered source folder; a path outside every source is an error.
 
 The agent detects problems, tells the owner, and proposes fixes; it never invalidates or replaces adopted knowledge. Until the owner approves a change, the existing page stays the standard and the agent states the risk it found. It does not carry out actions that break legal, security, or safety constraints (SCHEMA section 7).
 

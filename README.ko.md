@@ -140,11 +140,12 @@ main에 push할 때마다 `company-wiki lint --wiki-only`를 돌리려면 [templ
 ```bash
 company-wiki registry                          # 바뀐·이동한·만료된·미기록 인용과 영향받는 페이지
 company-wiki registry --source /documents/x.md # 이 원문에 기대는 페이지
+company-wiki registry --source ../docs/x.md    # 같은 조회를 등록 원천 안의 실제 파일 경로로
 company-wiki registry --page concepts/x        # 이 페이지가 바뀌면 영향받는 페이지
 company-wiki registry record concepts/x        # 페이지를 재확인한 뒤 갱신
 ```
 
-`changed`는 그 줄을 인용한 문장·관계를 재검토하라는 뜻입니다. `moved`는 내용은 같고 원문의 줄 위치만 바뀌었다는 뜻이라 인용 번호만 고치면 됩니다. 영향받는 페이지는 `related`의 `depends_on`·`implements`·`applies_to` 관계를 거꾸로, 연쇄적으로 따라가 찾습니다. `expired`는 세션 파일이 정리돼 근거를 다시 확인할 수 없다는 뜻입니다. Claude Code는 `cleanupPeriodDays` 동안 세션을 보관하므로 보관 기간을 늘리거나 결과 문서를 근거로 바꾸세요. lint는 이것들을 경고로, 문서 원문이 없으면 오류로 보고합니다.
+`changed`는 그 줄을 인용한 문장·관계를 재검토하라는 뜻입니다. `moved`는 내용은 같고 원문의 줄 위치만 바뀌었다는 뜻이라 인용 번호만 고치면 됩니다. 영향받는 페이지는 `related`의 `depends_on`·`implements`·`applies_to` 관계를 거꾸로, 연쇄적으로 따라가 찾습니다. `expired`는 세션 파일이 정리돼 근거를 다시 확인할 수 없다는 뜻입니다. Claude Code는 `cleanupPeriodDays` 동안 세션을 보관하므로 보관 기간을 늘리거나 결과 문서를 근거로 바꾸세요. lint는 이것들을 경고로, 문서 원문이 없으면 오류로 보고합니다. `--source`에는 인용 형식 `/별칭/경로`나 등록 원천 폴더 안 파일의 상대·절대·`~` 경로를 씁니다. 어느 원천에도 속하지 않는 경로는 오류입니다.
 
 에이전트는 문제를 감지하고 담당자에게 알리며 수정안을 제안할 뿐, 공식 지식을 무효화하거나 대체하지 않습니다. 담당자가 승인하기 전까지는 기존 지식이 기준이고, 에이전트는 발견한 위험을 함께 밝힙니다. 법률·보안·안전 같은 상위 제약을 어기는 실행은 하지 않습니다(SCHEMA 7절).
 

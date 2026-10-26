@@ -386,3 +386,58 @@ func TestLintWikiOnlyChecksStructureWithoutSources(t *testing.T) {
 		t.Fatal("related target", r)
 	}
 }
+
+func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
+	w := newWS(t)
+	home := resolvePath(t.TempDir(), "")
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	must(t, os.MkdirAll(filepath.Join(home, "hdocs"), 0o755))
+	must(t, os.WriteFile(filepath.Join(home, "hdocs/guide.md"), []byte("Be kind.\n"), 0o644))
+	w.writeConfig(w.read("wiki.toml") + "[sources.home]\nkind=\"documents\"\npath=\"~/hdocs\"\n")
+	w.ok("setup")
+	page := "---\ntype: policy\ntitle: Returns\ndescription: Return window\nowner: support-lead\nsources:\n  - ^[/notes/policy.md:1]\n---\nReturn within 14 days. ^[/notes/policy.md:1] Be kind. ^[/home/guide.md:1]\n"
+	must(t, os.WriteFile(filepath.Join(w.root, "knowledge/policies/returns.md"), []byte(page), 0o644))
+	w.ok("registry", "record")
+	at := func(dir, source string) result {
+		var out, errOut bytes.Buffer
+		env := func(k string) string {
+			if k == "WIKI_CONFIG" {
+				return w.config
+			}
+			return ""
+		}
+		code := Main([]string{"registry", "--source", source, "--json"}, IO{Env: env, Dir: dir, Stdout: &out, Stderr: &errOut})
+		return result{code, out.String(), errOut.String()}
+	}
+	cites := func(r result, key string) bool {
+		var got struct {
+			Citations map[string]map[string][][]string
+		}
+		if r.code != 0 || json.Unmarshal([]byte(r.stdout), &got) != nil || len(got.Citations) != 1 {
+			return false
+		}
+		return len(got.Citations[key]["fresh"]) == 1 && got.Citations[key]["fresh"][0][0] == "policies/returns"
+	}
+	for _, c := range []struct{ dir, source, key string }{
+		{w.root, "/notes/policy.md", "/notes/policy.md"},
+		{w.root, "raw/policy.md", "/notes/policy.md"},
+		{filepath.Join(w.root, "raw"), "policy.md", "/notes/policy.md"},
+		{filepath.Join(w.root, "knowledge"), "../raw/./policy.md", "/notes/policy.md"},
+		{t.TempDir(), filepath.Join(w.root, "raw", "policy.md"), "/notes/policy.md"},
+		{w.root, "~/hdocs/guide.md", "/home/guide.md"},
+		{w.root, filepath.Join(home, "hdocs", "guide.md"), "/home/guide.md"},
+	} {
+		if r := at(c.dir, c.source); !cites(r, c.key) {
+			t.Fatal(c.source, r)
+		}
+	}
+	if r := at(w.root, "/notes/absent.md"); r.code != 0 || strings.Contains(r.stdout, "policies/returns") {
+		t.Fatal("alias form of an uncited file", r)
+	}
+	for _, outside := range []string{"wiki.toml", filepath.Join(w.root, "knowledge", "policies", "returns.md"), "/nowhere/policy.md", "raw"} {
+		if r := at(w.root, outside); r.code != 1 || !strings.Contains(r.stderr, "등록 원천 밖의 경로") {
+			t.Fatal(outside, r)
+		}
+	}
+}

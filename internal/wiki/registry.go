@@ -19,10 +19,13 @@ const RegistryHelp = `원천 레지스트리. 인용별 최신성과 원문 → 
 원문 사본은 두지 않는다. review apply 가 자동 기록하고, 담당자가 페이지를 직접 고쳤으면 커밋 전에
 record <페이지> 를 실행해 레지스트리 변경을 같은 커밋에 넣는다.
 
-  company-wiki registry [--source /별칭/파일.md] [--all] [--json]   조회 (읽기 전용)
+  company-wiki registry [--source 경로] [--all] [--json]          조회 (읽기 전용)
   company-wiki registry --page concepts/x                         이 페이지가 바뀌면 영향받는 페이지
   company-wiki registry record                                    새 인용만 기록. 바뀐 원문의 기존 해시는 유지
   company-wiki registry record concepts/x ...                     지정 페이지를 재검토했을 때 현재 원문으로 갱신
+
+--source 는 인용 형식 /별칭/파일.md 또는 원천 폴더 안의 실제 파일 경로(상대·절대·~)를 받는다.
+실제 경로는 그 파일을 담은 등록 원천의 /별칭/상대경로 로 바꿔 찾는다. 등록 원천 밖이면 오류다.
 
 상태: fresh(승인 때와 같음) · moved(내용은 같고 줄만 이동, 인용 번호 수정) · changed(원문 변경, 재검토)
       expired(세션 원문 정리됨) · missing(원문 없음) · unrecorded(기록 없는 인용)
@@ -194,8 +197,45 @@ func atomicWrite(path string, data []byte) error {
 	return os.Rename(tmp, path)
 }
 
-// RegistryCmd runs `company-wiki registry`.
-func RegistryCmd(c *Config, args []string, out, errOut io.Writer) int {
+// citationPath turns a --source value into the cited `/alias/path` form. An `/alias/...` value of a
+// known alias, or a value already cited as is, is kept; a file path (relative to dir, absolute or ~)
+// becomes the path inside the enabled source whose folder contains it, the innermost if nested.
+func (c *Config) citationPath(value, dir string, cited map[string]map[string][]hit) (string, error) {
+	if _, ok := cited[value]; ok {
+		return value, nil
+	}
+	if strings.HasPrefix(value, "/") {
+		head, _, _ := strings.Cut(strings.TrimLeft(value, "/"), "/")
+		if _, ok := c.ExtraRoots[head]; ok {
+			return value, nil
+		}
+		if _, ok := c.source(head); ok {
+			return value, nil
+		}
+	}
+	target := resolvePath(expandUser(value), dir)
+	alias, best := "", ""
+	for a, root := range c.ExtraRoots {
+		if target == root || !within(target, root) {
+			continue
+		}
+		// Nested roots: the longer one is inside the other.
+		if alias == "" || len(root) > len(best) || len(root) == len(best) && a < alias {
+			alias, best = a, root
+		}
+	}
+	if alias == "" {
+		return "", fmt.Errorf("등록 원천 밖의 경로: %s (원천 폴더 안의 파일이나 /별칭/경로 형식으로 지정)", value)
+	}
+	rel, err := filepath.Rel(best, target)
+	if err != nil {
+		return "", err
+	}
+	return "/" + alias + "/" + filepath.ToSlash(rel), nil
+}
+
+// RegistryCmd runs `company-wiki registry`; dir resolves a relative --source path.
+func RegistryCmd(c *Config, args []string, dir string, out, errOut io.Writer) int {
 	if len(args) > 0 && args[0] == "record" {
 		changed, err := c.Record(args[1:])
 		if err != nil {
@@ -236,6 +276,10 @@ func RegistryCmd(c *Config, args []string, out, errOut io.Writer) int {
 	}
 	source := opts["source"]
 	if source != "" {
+		if source, err = c.citationPath(source, dir, data); err != nil {
+			fmt.Fprintf(errOut, "ERROR: %v\n", err)
+			return 1
+		}
 		filtered := map[string]map[string][]hit{}
 		if v, ok := data[source]; ok {
 			filtered[source] = v
