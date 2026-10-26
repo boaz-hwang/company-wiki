@@ -1,5 +1,5 @@
 # Configuration for the English example: llm-wiki/ is the wiki, workspace/wiki-changes/ the change materials.
-# Use it from the repository root with: WIKI_CONFIG=examples/en/wiki.toml company-wiki lint
+# Use it from this folder: cd examples/en && company-wiki lint
 [wiki]
 title = "Fictional Store Wiki"
 reviewer = "human:owner"

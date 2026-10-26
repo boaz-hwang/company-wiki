@@ -26,7 +26,7 @@ const setupHelp = `Prepare ~/company-wiki (Windows: %USERPROFILE%\\company-wiki)
   company-wiki setup --list-kinds                      등록할 수 있는 원천 종류
 
 현재 폴더와 관계없이 ~/company-wiki에 wiki.toml, llm-wiki/(위키), workspace/wiki-changes/(변경 절차 폴더),
-스킬, AGENTS.md를 만든다. WIKI_CONFIG는 setup에 쓰지 않는다.
+스킬, AGENTS.md를 만든다.
 --source의 상대 경로는 현재 폴더 기준이며 절대 경로(홈 아래면 ~/…)로 저장한다.
 workspace가 있으면 그대로 쓴다. 없으면 --vault의 폴더, 그다음 Obsidian 설정에서 찾은 Vault에 연결하고,
 둘 다 없으면 빈 폴더를 만든다. Vault 안에는 wiki-changes/만 만들고 기존 내용은 건드리지 않는다.`
@@ -95,16 +95,10 @@ func Setup(args []string, x IO) int {
 		}
 	}
 	config := filepath.Join(base, "wiki.toml")
-	// Always the fixed root's config, whatever WIKI_CONFIG or the current folder says.
-	env := func(k string) string {
-		if k == "WIKI_CONFIG" {
-			return config
-		}
-		return x.Env(k)
-	}
+	// Always the fixed root's config, whatever the current folder says.
 	if isFile(config) {
 		// Reject an unsupported config before changing anything.
-		if _, err := LoadConfig(env, x.Dir); err != nil {
+		if _, err := loadConfigAt(x.Env, config); err != nil {
 			return fail(err)
 		}
 	}
@@ -175,7 +169,7 @@ func Setup(args []string, x IO) int {
 			}
 		}
 	}
-	c, err := LoadConfig(env, x.Dir)
+	c, err := loadConfigAt(x.Env, config)
 	if err != nil {
 		return fail(err)
 	}

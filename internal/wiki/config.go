@@ -66,16 +66,12 @@ func DefaultRoot() (string, error) {
 	return resolvePath(filepath.Join(home, rootName), ""), nil
 }
 
-// FindConfig returns WIKI_CONFIG, or the nearest wiki.toml from dir upward, or ~/company-wiki/wiki.toml.
-func FindConfig(env Env, dir string) (string, bool, error) {
-	if v := env("WIKI_CONFIG"); v != "" {
-		p := resolvePath(expandUser(v), dir)
-		return p, true, nil
-	}
+// FindConfig returns the nearest wiki.toml from dir upward, or ~/company-wiki/wiki.toml.
+func FindConfig(dir string) (string, error) {
 	for d := resolvePath(dir, ""); ; d = filepath.Dir(d) {
 		candidate := filepath.Join(d, "wiki.toml")
 		if isFile(candidate) {
-			return candidate, false, nil
+			return candidate, nil
 		}
 		if filepath.Dir(d) == d {
 			break
@@ -83,22 +79,24 @@ func FindConfig(env Env, dir string) (string, bool, error) {
 	}
 	root, err := DefaultRoot()
 	if err != nil {
-		return "", false, err
+		return "", err
 	}
-	return filepath.Join(root, "wiki.toml"), false, nil
+	return filepath.Join(root, "wiki.toml"), nil
 }
 
 // LoadConfig reads the configuration for a command run in dir.
 func LoadConfig(env Env, dir string) (*Config, error) {
-	path, explicit, err := FindConfig(env, dir)
+	path, err := FindConfig(dir)
 	if err != nil {
 		return nil, err
 	}
+	return loadConfigAt(env, path)
+}
+
+// loadConfigAt reads the configuration at path; a missing file gives the defaults.
+func loadConfigAt(env Env, path string) (*Config, error) {
 	data := map[string]any{}
 	exists := isFile(path)
-	if explicit && !exists {
-		return nil, fmt.Errorf("Configuration not found: %s", path)
-	}
 	if exists {
 		raw, err := os.ReadFile(path)
 		if err != nil {

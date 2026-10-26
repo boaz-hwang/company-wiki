@@ -20,7 +20,7 @@ const usage = `company-wiki — LLM wiki of adopted knowledge (concepts, entitie
   company-wiki session <path> [--start N] [--end M] [--tools] [--max-chars N]
   company-wiki version
 
-wiki.toml is WIKI_CONFIG, or the nearest wiki.toml from the current folder upward, or ~/company-wiki/wiki.toml.
+wiki.toml is the nearest wiki.toml from the current folder upward, or ~/company-wiki/wiki.toml.
 Next to it the layout is fixed: llm-wiki/ (the wiki) and workspace/wiki-changes/ (change materials).
 lint --wiki-only checks the current folder (or WIKI_ROOT) as the wiki without wiki.toml or sources,
 for the wiki repository's CI; cited files and registry hashes are reported as info.`
@@ -44,6 +44,12 @@ func Main(args []string, x IO) int {
 		return 0
 	}
 	cmd, rest := args[0], args[1:]
+	if v := x.Env("WIKI_CONFIG"); v != "" && cmd != "version" && cmd != "--version" {
+		// Not silently ignored: the person meant another wiki, which only the folder now selects.
+		fmt.Fprintf(x.Stderr, "ERROR: WIKI_CONFIG is no longer supported (set to %s). The wiki is ~/company-wiki; "+
+			"for another wiki.toml run the command in its folder. Unset WIKI_CONFIG and retry.\n", v)
+		return 2
+	}
 	switch cmd {
 	case "version", "--version":
 		fmt.Fprintln(x.Stdout, "company-wiki "+Version)

@@ -50,12 +50,7 @@ type result struct {
 
 func (w *ws) run(args ...string) result {
 	var out, errOut bytes.Buffer
-	env := func(k string) string {
-		if k == "WIKI_CONFIG" {
-			return w.config
-		}
-		return ""
-	}
+	env := func(string) string { return "" }
 	code := Main(args, IO{Env: env, Dir: w.root, Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errOut})
 	return result{code, out.String(), errOut.String()}
 }
@@ -436,12 +431,7 @@ func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
 	w.ok("registry", "record")
 	at := func(dir, source string) result {
 		var out, errOut bytes.Buffer
-		env := func(k string) string {
-			if k == "WIKI_CONFIG" {
-				return w.config
-			}
-			return ""
-		}
+		env := func(string) string { return "" }
 		code := Main([]string{"registry", "--source", source, "--json"}, IO{Env: env, Dir: dir, Stdout: &out, Stderr: &errOut})
 		return result{code, out.String(), errOut.String()}
 	}
@@ -535,15 +525,9 @@ func TestSetupFromAnyFolderUsesFixedRootAndStoresAbsoluteSources(t *testing.T) {
 	must(t, os.MkdirAll(filepath.Join(outside, "project", "docs"), 0o755))
 	must(t, os.MkdirAll(filepath.Join(home, "notes"), 0o755))
 	must(t, os.MkdirAll(filepath.Join(home, "sub"), 0o755))
-	elsewhere := filepath.Join(outside, "elsewhere", "wiki.toml")
 	run := func(dir string, args ...string) result {
 		var out, errOut bytes.Buffer
-		env := func(k string) string {
-			if k == "WIKI_CONFIG" {
-				return elsewhere // setup ignores it
-			}
-			return ""
-		}
+		env := func(string) string { return "" }
 		code := Main(args, IO{Env: env, Dir: dir, Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errOut})
 		return result{code, out.String(), errOut.String()}
 	}
@@ -563,7 +547,7 @@ func TestSetupFromAnyFolderUsesFixedRootAndStoresAbsoluteSources(t *testing.T) {
 			t.Fatal("missing", p)
 		}
 	}
-	if exists(elsewhere) || exists(filepath.Join(outside, "project", "wiki.toml")) || exists(filepath.Join(outside, "project", "llm-wiki")) {
+	if exists(filepath.Join(outside, "project", "wiki.toml")) || exists(filepath.Join(outside, "project", "llm-wiki")) {
 		t.Fatal("setup wrote outside the fixed root")
 	}
 	again := run(outside, "setup")
@@ -746,5 +730,23 @@ func TestLintRejectsChangeMaterialsInWiki(t *testing.T) {
 	}
 	if r := w.run("lint"); r.code != 0 {
 		t.Fatal(r)
+	}
+}
+
+// WIKI_CONFIG no longer selects a wiki; a leftover setting is reported instead of ignored.
+func TestWikiConfigIsRejectedNotIgnored(t *testing.T) {
+	w := newWS(t)
+	for _, args := range [][]string{{"setup"}, {"lint"}, {"registry"}, {"review", "status"}} {
+		var out, errOut bytes.Buffer
+		env := func(k string) string {
+			if k == "WIKI_CONFIG" {
+				return filepath.Join(t.TempDir(), "wiki.toml")
+			}
+			return ""
+		}
+		code := Main(args, IO{Env: env, Dir: w.root, Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errOut})
+		if code != 2 || !strings.Contains(errOut.String(), "WIKI_CONFIG is no longer supported") || out.Len() != 0 {
+			t.Fatal(args, code, out.String(), errOut.String())
+		}
 	}
 }

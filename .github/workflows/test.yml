@@ -19,9 +19,10 @@ jobs:
         shell: bash
         run: |
           go build -o company-wiki ./cmd/company-wiki
-          WIKI_CONFIG=examples/en/wiki.toml ./company-wiki lint
-          WIKI_CONFIG=examples/en/wiki.toml ./company-wiki registry
-          WIKI_CONFIG=examples/en/wiki.toml ./company-wiki review status
+          cd examples/en
+          ../../company-wiki lint
+          ../../company-wiki registry
+          ../../company-wiki review status
       - name: Windows PowerShell setup smoke test
         if: runner.os == 'Windows'
         shell: powershell

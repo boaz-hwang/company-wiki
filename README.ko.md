@@ -184,15 +184,14 @@ setup이 고른 원천으로 `wiki.toml`을 만듭니다. 모든 옵션은 [wiki
 
 CLI는 LLM을 호출하지 않습니다. 검사 통과가 내용의 정확성을 증명하지는 않으며, 그것은 담당자 승인이 맡습니다. 위키(`llm-wiki/`)는 별도 저장소에 두고 공개 범위를 먼저 정하세요. `wiki.toml`과 `workspace/`는 각자의 컴퓨터에 남습니다.
 
-명령은 `WIKI_CONFIG=/path/to/wiki.toml`이 있으면 그것을, 없으면 현재 폴더부터 위로 찾은 `wiki.toml`을, 그것도 없으면 `~/company-wiki/wiki.toml`을 쓰므로 어느 폴더에서나 동작합니다. Windows 경로는 `wiki.toml`에 작은따옴표로 씁니다.
+명령은 현재 폴더부터 위로 찾은 `wiki.toml`을, 없으면 `~/company-wiki/wiki.toml`을 쓰므로 어느 폴더에서나 동작합니다. 예제처럼 다른 wiki.toml을 검사하려면 그 폴더에서 실행합니다. `WIKI_CONFIG`는 더 이상 지원하지 않으며, 설정돼 있으면 명령이 멈춥니다. Windows 경로는 `wiki.toml`에 작은따옴표로 씁니다.
 
 ## 예제와 검사
 
 [가상 반품 정책 예제](examples/README.ko.md)에 정책·개념·타입 관계·레지스트리·결정 대기 중인 변경안이 있습니다.
 
 ```bash
-WIKI_CONFIG=examples/en/wiki.toml company-wiki lint
-WIKI_CONFIG=examples/en/wiki.toml company-wiki registry
+(cd examples/en && company-wiki lint && company-wiki registry)
 go test ./...      # 도구 개발
 ```
 

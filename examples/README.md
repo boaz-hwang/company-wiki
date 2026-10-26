@@ -42,7 +42,8 @@ There is no `decisions.jsonl` or `applied.jsonl` here, because a decision must q
 To check the example yourself, from the repository root:
 
 ```bash
-WIKI_CONFIG=examples/en/wiki.toml company-wiki lint
-WIKI_CONFIG=examples/en/wiki.toml company-wiki registry --all
-WIKI_CONFIG=examples/en/wiki.toml company-wiki review preview 2026-10-08-policy-change policy-change
+cd examples/en
+company-wiki lint
+company-wiki registry --all
+company-wiki review preview 2026-10-08-policy-change policy-change
 ```

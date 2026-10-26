@@ -34,10 +34,11 @@ README 시작 프롬프트에서 프로젝트 이름을 “가상 상점”, 문
 
 결정은 실제 세션의 사용자 메시지를 인용해야 하므로 예제에는 decisions.jsonl·applied.jsonl이 없다. 실제 환경에서는 담당자가 세션에서 이 질문에 답하고, `company-wiki review decide`가 그 답을 기록한 뒤 `apply`가 페이지를 쓰며, 그 결과를 위키 저장소 main에 커밋·푸시한다.
 
-저장소 루트에서 직접 확인:
+저장소 루트에서 예제 폴더로 이동해 직접 확인:
 
 ```bash
-WIKI_CONFIG=examples/en/wiki.toml company-wiki lint
-WIKI_CONFIG=examples/en/wiki.toml company-wiki registry --all
-WIKI_CONFIG=examples/en/wiki.toml company-wiki review preview 2026-10-08-policy-change policy-change
+cd examples/en
+company-wiki lint
+company-wiki registry --all
+company-wiki review preview 2026-10-08-policy-change policy-change
 ```

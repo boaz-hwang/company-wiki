@@ -1,6 +1,6 @@
 # 위키 검토 도구 사용법
 
-`company-wiki` CLI로 실행한다. 명령은 어느 폴더에서나 ~/company-wiki/wiki.toml을 쓴다(WIKI_CONFIG나 현재 폴더부터 위로 찾은 wiki.toml이 있으면 그것). 규칙은 `SCHEMA.md`의 변경과 승인 절이다. 위키는 ~/company-wiki/llm-wiki, 변경 절차 폴더는 ~/company-wiki/workspace/wiki-changes로 고정이며 검토자는 wiki.toml을 따른다.
+`company-wiki` CLI로 실행한다. 명령은 어느 폴더에서나 ~/company-wiki/wiki.toml을 쓴다(현재 폴더부터 위로 찾은 wiki.toml이 있으면 그것). 규칙은 `SCHEMA.md`의 변경과 승인 절이다. 위키는 ~/company-wiki/llm-wiki, 변경 절차 폴더는 ~/company-wiki/workspace/wiki-changes로 고정이며 검토자는 wiki.toml을 따른다.
 
 ## 반영 경로 (main 직접 커밋)
 

@@ -187,15 +187,14 @@ Setup writes `wiki.toml` with the sources you selected; [wiki.example.toml](wiki
 
 The CLI does not call an LLM. A passing check does not prove the content is right; the owner's approval does that. Keep the wiki (`llm-wiki/`) in its own repository and decide its visibility first; `wiki.toml` and `workspace/` stay on your machine.
 
-Commands use `WIKI_CONFIG=/path/to/wiki.toml` if set, else the nearest `wiki.toml` from the current folder upward, else `~/company-wiki/wiki.toml`, so they work from any folder. On Windows, write paths in `wiki.toml` with single quotes.
+Commands use the nearest `wiki.toml` from the current folder upward, else `~/company-wiki/wiki.toml`, so they work from any folder; to check another wiki.toml (such as the example), run the command in its folder. `WIKI_CONFIG` is no longer supported, and commands stop if it is set. On Windows, write paths in `wiki.toml` with single quotes.
 
 ## Example and checks
 
 The [fictional returns policy example](examples/README.md) has a policy, a concept, a typed relation, a registry, and a pending change proposal.
 
 ```bash
-WIKI_CONFIG=examples/en/wiki.toml company-wiki lint
-WIKI_CONFIG=examples/en/wiki.toml company-wiki registry
+(cd examples/en && company-wiki lint && company-wiki registry)
 go test ./...      # tool development
 ```
 
