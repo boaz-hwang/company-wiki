@@ -3,6 +3,7 @@ package wiki
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -453,6 +454,53 @@ func TestLintWikiOnlyChecksStructureWithoutSources(t *testing.T) {
 	must(t, os.WriteFile(filepath.Join(repo, "concepts/window.md"), []byte(strings.Replace(concept, "policies/returns", "policies/gone", 1)), 0o644))
 	if r := lint(repo, nil, "--wiki-only"); r.code != 1 || !strings.Contains(r.stdout, "없는 대상 `policies/gone`") {
 		t.Fatal("related target", r)
+	}
+}
+
+func TestLintAndRegistryOutputIsDeterministic(t *testing.T) {
+	w := newWS(t)
+	w.ok("setup")
+	lines := []string{}
+	for i := 1; i <= 12; i++ {
+		lines = append(lines, fmt.Sprintf("Line %d.", i))
+	}
+	must(t, os.WriteFile(filepath.Join(w.root, "raw/policy.md"), []byte(strings.Join(lines, "\n")+"\n"), 0o644))
+	// Cited out of order, so first appearance is not numeric order.
+	cites := "^[/notes/policy.md:10] ^[/notes/policy.md:2-3] ^[/notes/policy.md:2] ^[/notes/policy.md:9]"
+	for _, name := range []string{"b", "a"} {
+		page := "---\ntype: policy\ntitle: P " + name + "\ndescription: d\nowner: support-lead\nsources:\n  - ^[/notes/policy.md:2-3]\n---\nText. " + cites + "\n"
+		must(t, os.WriteFile(filepath.Join(w.root, "llm-wiki/policies/"+name+".md"), []byte(page), 0o644))
+	}
+	w.ok("index")
+	w.ok("registry", "record")
+	// Insert a line at the top: every cited range moves down by one.
+	must(t, os.WriteFile(filepath.Join(w.root, "raw/policy.md"), []byte("New first line.\n"+strings.Join(lines, "\n")+"\n"), 0o644))
+	first := w.run("lint").stdout
+	if !strings.Contains(first, "인용 줄 이동") {
+		t.Fatal(first)
+	}
+	order := []string{"policies/a.md: 인용 줄 이동 `/notes/policy.md:2-2`", "policies/a.md: 인용 줄 이동 `/notes/policy.md:2-3`",
+		"policies/a.md: 인용 줄 이동 `/notes/policy.md:9-9`", "policies/a.md: 인용 줄 이동 `/notes/policy.md:10-10`", "policies/b.md: 인용 줄 이동 `/notes/policy.md:2-2`"}
+	last := -1
+	for _, o := range order {
+		i := strings.Index(first, o)
+		if i <= last {
+			t.Fatalf("%q out of order in\n%s", o, first)
+		}
+		last = i
+	}
+	reg := w.ok("registry").stdout
+	if i, j := strings.Index(reg, "policies/a (줄 2-2 → 3-3)"), strings.Index(reg, "policies/a (줄 10-10 → 11-11)"); i < 0 || j < i {
+		t.Fatal(reg)
+	}
+	regJSON := w.ok("registry", "--json").stdout
+	for n := 0; n < 20; n++ {
+		if got := w.run("lint").stdout; got != first {
+			t.Fatalf("lint run %d differs:\n%s\n---\n%s", n, first, got)
+		}
+		if w.ok("registry").stdout != reg || w.ok("registry", "--json").stdout != regJSON {
+			t.Fatal("registry output differs", n)
+		}
 	}
 }
 

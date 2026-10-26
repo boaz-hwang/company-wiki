@@ -60,6 +60,17 @@ func (c *Config) report() (map[string]map[string][]hit, error) {
 			out[path][ks.state] = append(out[path][ks.state], hit{p.Slug, lines})
 		}
 	}
+	// Text and --json list hits by page, then by line range in numeric order.
+	for _, states := range out {
+		for _, hits := range states {
+			sort.SliceStable(hits, func(i, j int) bool {
+				if hits[i].Slug != hits[j].Slug {
+					return hits[i].Slug < hits[j].Slug
+				}
+				return naturalLess(hits[i].Lines, hits[j].Lines)
+			})
+		}
+	}
 	return out, nil
 }
 
@@ -334,14 +345,7 @@ func RegistryCmd(c *Config, args []string, dir string, out, errOut io.Writer) in
 			if state == "fresh" && !(all || source != "") {
 				continue
 			}
-			hits := append([]hit(nil), states[state]...)
-			sort.Slice(hits, func(i, j int) bool {
-				if hits[i].Slug != hits[j].Slug {
-					return hits[i].Slug < hits[j].Slug
-				}
-				return hits[i].Lines < hits[j].Lines
-			})
-			for _, h := range hits {
+			for _, h := range states[state] {
 				fmt.Fprintf(out, "  %-10s %s (줄 %s)\n", state, h.Slug, h.Lines)
 			}
 		}

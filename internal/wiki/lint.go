@@ -244,6 +244,8 @@ func Lint(c *Config, out io.Writer) int {
 		label string
 		items []string
 	}{{"ERROR", errs}, {"WARNING", warns}, {"INFO", infos}} {
+		// Same input, same output: by page path, then citation lines in numeric order.
+		sortNatural(group.items)
 		for _, it := range group.items {
 			fmt.Fprintf(out, "[%s] %s\n", group.label, it)
 		}
@@ -305,3 +307,42 @@ func sortedKeys(m map[string]bool) []string {
 	sort.Strings(out)
 	return out
 }
+
+// sortNatural orders messages so that runs of digits compare as numbers: `:2-2` before `:2-3` before `:2-10`.
+func sortNatural(items []string) {
+	sort.SliceStable(items, func(i, j int) bool { return naturalLess(items[i], items[j]) })
+}
+
+func naturalLess(a, b string) bool {
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		if isDigit(a[i]) && isDigit(b[j]) {
+			si, sj := i, j
+			for i < len(a) && isDigit(a[i]) {
+				i++
+			}
+			for j < len(b) && isDigit(b[j]) {
+				j++
+			}
+			x, y := strings.TrimLeft(a[si:i], "0"), strings.TrimLeft(b[sj:j], "0")
+			if len(x) != len(y) {
+				return len(x) < len(y)
+			}
+			if x != y {
+				return x < y
+			}
+			continue
+		}
+		if a[i] != b[j] {
+			return a[i] < b[j]
+		}
+		i++
+		j++
+	}
+	if len(a)-i != len(b)-j {
+		return len(a)-i < len(b)-j
+	}
+	return a < b
+}
+
+func isDigit(c byte) bool { return '0' <= c && c <= '9' }
