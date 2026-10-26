@@ -35,18 +35,31 @@ jobs:
           $env:APPDATA = Join-Path $env:USERPROFILE 'AppData\Roaming'
           $project = Join-Path $tmp 'project'
           New-Item -ItemType Directory -Path (Join-Path $project 'docs'), $env:APPDATA -Force | Out-Null
+          $vault = Join-Path $tmp 'vault'
+          New-Item -ItemType Directory -Path $vault -Force | Out-Null
+          Set-Content -Path (Join-Path $vault 'note.md') -Value 'my note'
           Push-Location $project
           try {
-            & $exe setup --source ('documents=' + (Join-Path $project 'docs'))
+            & $exe setup --source documents=docs --vault $vault
             if ($LASTEXITCODE -ne 0) { throw 'setup failed' }
-            if (-not (Test-Path (Join-Path $env:USERPROFILE 'company-wiki\llm-wiki\index.md'))) { throw 'wiki not created' }
+            $root = Join-Path $env:USERPROFILE 'company-wiki'
+            if (-not (Test-Path (Join-Path $root 'llm-wiki\index.md'))) { throw 'wiki not created' }
+            if (-not (Select-String -Path (Join-Path $root 'wiki.toml') -SimpleMatch -Quiet ("path = '" + (Join-Path $project 'docs') + "'"))) { throw 'source path not absolute' }
+            if (-not (Test-Path (Join-Path $vault 'wiki-changes'))) { throw 'wiki-changes not created in the vault' }
+            if (-not (Test-Path (Join-Path $root 'workspace\note.md'))) { throw 'workspace does not reach the vault' }
+            Set-Location $tmp
             & $exe lint
             if ($LASTEXITCODE -ne 0) { throw 'lint failed' }
             & $exe review status
             if ($LASTEXITCODE -ne 0) { throw 'status failed' }
             & $exe registry
             if ($LASTEXITCODE -ne 0) { throw 'registry failed' }
+            & $exe setup
+            if ($LASTEXITCODE -ne 0) { throw 'second setup failed' }
           } finally {
             Pop-Location
+            # Remove the junction itself first so the vault is not deleted through it.
+            $link = Join-Path $env:USERPROFILE 'company-wiki\workspace'
+            if (Test-Path $link) { cmd /c rmdir "$link" }
             Remove-Item -LiteralPath $tmp -Recurse -Force
           }

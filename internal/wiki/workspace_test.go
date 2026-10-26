@@ -15,12 +15,16 @@ import (
 // Public workspace integration: synthetic sources and decisions only.
 
 type ws struct {
-	t            *testing.T
-	root, config string
+	t                  *testing.T
+	home, root, config string
 }
 
+// newWS gives each test its own home folder, so setup's fixed root is <home>/company-wiki.
 func newWS(t *testing.T) *ws {
-	w := &ws{t: t, root: filepath.Join(resolvePath(t.TempDir(), ""), "한글 작업 공간")}
+	home := filepath.Join(resolvePath(t.TempDir(), ""), "한글 홈")
+	must(t, os.MkdirAll(home, 0o755))
+	setHome(t, home)
+	w := &ws{t: t, home: home, root: filepath.Join(home, "company-wiki")}
 	for _, d := range []string{"raw", "sessions"} {
 		must(t, os.MkdirAll(filepath.Join(w.root, d), 0o755))
 	}
@@ -28,6 +32,13 @@ func newWS(t *testing.T) *ws {
 	w.config = filepath.Join(w.root, "wiki.toml")
 	w.writeConfig("\ufeff[wiki]\ntitle=\"Team Wiki 한글\"\nreviewer=\"human:alice\"\n[sources.notes]\nkind=\"documents\"\npath=\"raw\"\n[sources.claude-sessions]\nkind=\"claude\"\npath=\"sessions\"\n")
 	return w
+}
+
+func setHome(t *testing.T, home string) {
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
+	t.Setenv("XDG_CONFIG_HOME", "")
 }
 
 func (w *ws) writeConfig(s string) { must(w.t, os.WriteFile(w.config, []byte(s), 0o644)) }
@@ -371,8 +382,9 @@ func TestLintWikiOnlyChecksStructureWithoutSources(t *testing.T) {
 		code := Main(append([]string{"lint"}, args...), IO{Env: func(k string) string { return env[k] }, Dir: dir, Stdout: &out, Stderr: &errOut})
 		return result{code, out.String(), errOut.String()}
 	}
+	setHome(t, resolvePath(t.TempDir(), "")) // no ~/company-wiki on the CI runner
 	if r := lint(repo, nil); r.code != 1 {
-		t.Fatal("plain lint should fail outside the workspace", r)
+		t.Fatal("plain lint should fail without a configuration", r)
 	}
 	r := lint(repo, nil, "--wiki-only")
 	if r.code != 0 || !strings.Contains(r.stdout, "2 pages · 0 errors") || !strings.Contains(r.stdout, "[INFO] 인용 2개(원문 1개)") || strings.Contains(r.stdout, "인용 파일 없음") {
@@ -407,9 +419,7 @@ func TestLintWikiOnlyChecksStructureWithoutSources(t *testing.T) {
 
 func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
 	w := newWS(t)
-	home := resolvePath(t.TempDir(), "")
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	home := w.home
 	must(t, os.MkdirAll(filepath.Join(home, "hdocs"), 0o755))
 	must(t, os.WriteFile(filepath.Join(home, "hdocs/guide.md"), []byte("Be kind.\n"), 0o644))
 	w.writeConfig(w.read("wiki.toml") + "[sources.home]\nkind=\"documents\"\npath=\"~/hdocs\"\n")
@@ -462,9 +472,7 @@ func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
 
 func TestSetupSkipsAlreadyRegisteredSources(t *testing.T) {
 	w := newWS(t)
-	home := resolvePath(t.TempDir(), "")
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
+	home := w.home
 	must(t, os.MkdirAll(filepath.Join(home, "hdocs"), 0o755))
 	w.ok("setup")
 	before := w.read("wiki.toml") // starts with a BOM, so any rewrite would show
@@ -482,7 +490,7 @@ func TestSetupSkipsAlreadyRegisteredSources(t *testing.T) {
 		}
 	}
 	// The same folder as another kind is a different source.
-	if r := w.ok("setup", "--source", "code=raw"); strings.Contains(r.stdout, "이미 등록됨") || !strings.Contains(w.read("wiki.toml"), "[sources.code]\nkind = \"code\"\npath = 'raw'") {
+	if r := w.ok("setup", "--source", "code=raw"); strings.Contains(r.stdout, "이미 등록됨") || !strings.Contains(w.read("wiki.toml"), "[sources.code]\nkind = \"code\"\npath = '~/company-wiki/raw'") {
 		t.Fatal("code source not added", r.stdout)
 	}
 	// ~ and absolute spellings of one folder, in one run and across runs.
@@ -509,5 +517,194 @@ func TestNewWorkspaceSkipsDuplicateSourcesInOneRun(t *testing.T) {
 	if strings.Count(toml, "[sources.") != 2 || !strings.Contains(toml, "[sources.documents]") || !strings.Contains(toml, "[sources.code]") ||
 		!strings.Contains(r.stdout, "이미 등록됨: documents ./raw (별칭 documents). 별칭 again 는 추가하지 않음") {
 		t.Fatal(toml, r.stdout)
+	}
+}
+
+// Setup always prepares <home>/company-wiki; --source paths come from the current folder.
+func TestSetupFromAnyFolderUsesFixedRootAndStoresAbsoluteSources(t *testing.T) {
+	home := resolvePath(t.TempDir(), "")
+	setHome(t, home)
+	outside := resolvePath(t.TempDir(), "") // not under home
+	must(t, os.MkdirAll(filepath.Join(outside, "project", "docs"), 0o755))
+	must(t, os.MkdirAll(filepath.Join(home, "notes"), 0o755))
+	must(t, os.MkdirAll(filepath.Join(home, "sub"), 0o755))
+	elsewhere := filepath.Join(outside, "elsewhere", "wiki.toml")
+	run := func(dir string, args ...string) result {
+		var out, errOut bytes.Buffer
+		env := func(k string) string {
+			if k == "WIKI_CONFIG" {
+				return elsewhere // setup ignores it
+			}
+			return ""
+		}
+		code := Main(args, IO{Env: env, Dir: dir, Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errOut})
+		return result{code, out.String(), errOut.String()}
+	}
+	if r := run(filepath.Join(outside, "project"), "setup", "--source", "documents=docs"); r.code != 0 {
+		t.Fatal(r)
+	}
+	if r := run(filepath.Join(home, "sub"), "setup", "--source", "documents:notes=../notes"); r.code != 0 {
+		t.Fatal(r)
+	}
+	root := filepath.Join(home, "company-wiki")
+	toml := string(readBytes(filepath.Join(root, "wiki.toml")))
+	if !strings.Contains(toml, "path = '"+filepath.Join(outside, "project", "docs")+"'") || !strings.Contains(toml, "path = '~/notes'") {
+		t.Fatal(toml)
+	}
+	for _, p := range []string{"llm-wiki/index.md", "llm-wiki/SCHEMA.md", "llm-wiki/policies", "workspace/wiki-changes", "AGENTS.md", ".claude/skills/wiki-review/SKILL.md"} {
+		if !exists(filepath.Join(root, filepath.FromSlash(p))) {
+			t.Fatal("missing", p)
+		}
+	}
+	if exists(elsewhere) || exists(filepath.Join(outside, "project", "wiki.toml")) || exists(filepath.Join(outside, "project", "llm-wiki")) {
+		t.Fatal("setup wrote outside the fixed root")
+	}
+	again := run(outside, "setup")
+	if again.code != 0 || !strings.Contains(again.stdout, "workspace: 기존 폴더 사용") || string(readBytes(filepath.Join(root, "wiki.toml"))) != toml {
+		t.Fatal(again)
+	}
+	// Other commands find the fixed root from any folder.
+	var out bytes.Buffer
+	if code := Main([]string{"lint"}, IO{Env: func(string) string { return "" }, Dir: outside, Stdout: &out, Stderr: &out}); code != 0 || !strings.Contains(out.String(), "0 errors") {
+		t.Fatal(out.String())
+	}
+}
+
+func writeObsidian(t *testing.T, vaults map[string]any) {
+	t.Helper()
+	data, _ := json.Marshal(map[string]any{"vaults": vaults})
+	p := obsidianConfigs()[0]
+	must(t, os.MkdirAll(filepath.Dir(p), 0o755))
+	must(t, os.WriteFile(p, data, 0o644))
+}
+
+func listDir(t *testing.T, dir string) []string {
+	entries, err := os.ReadDir(dir)
+	must(t, err)
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	return names
+}
+
+func TestSetupWorkspaceCases(t *testing.T) {
+	setup := func(w *ws, dir string, args ...string) result {
+		var out, errOut bytes.Buffer
+		code := Main(append([]string{"setup", "--source", "documents=" + filepath.Join(w.home, "docs")}, args...),
+			IO{Env: func(string) string { return "" }, Dir: dir, Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errOut})
+		return result{code, out.String(), errOut.String()}
+	}
+	fresh := func(t *testing.T) (*ws, string) {
+		w := newWS(t)
+		must(t, os.MkdirAll(filepath.Join(w.home, "docs"), 0o755))
+		vaults := resolvePath(t.TempDir(), "")
+		for _, v := range []string{"open-wiki", "chosen", "older"} {
+			must(t, os.MkdirAll(filepath.Join(vaults, v, ".obsidian"), 0o755))
+			must(t, os.WriteFile(filepath.Join(vaults, v, "note.md"), []byte("my note\n"), 0o644))
+		}
+		must(t, os.WriteFile(filepath.Join(vaults, "open-wiki", "wiki.toml"), []byte("[wiki]\n"), 0o644))
+		return w, vaults
+	}
+	linkedTo := func(t *testing.T, w *ws, vault string) {
+		t.Helper()
+		ws := filepath.Join(w.root, "workspace")
+		if _, err := os.Readlink(ws); err != nil {
+			t.Fatal("workspace is not a link", err)
+		}
+		if got := listDir(t, vault); strings.Join(got, ",") != ".obsidian,note.md,wiki-changes" {
+			t.Fatal("vault contents", got)
+		}
+		if string(readBytes(filepath.Join(vault, "note.md"))) != "my note\n" || !isDir(filepath.Join(ws, "wiki-changes")) || !isFile(filepath.Join(ws, "note.md")) {
+			t.Fatal("link does not reach the vault")
+		}
+	}
+
+	t.Run("obsidian", func(t *testing.T) {
+		w, vaults := fresh(t)
+		writeObsidian(t, map[string]any{
+			"a": map[string]any{"path": filepath.Join(vaults, "open-wiki"), "ts": 300, "open": true},
+			"b": map[string]any{"path": filepath.Join(vaults, "chosen"), "ts": 200},
+			"c": map[string]any{"path": filepath.Join(vaults, "older"), "ts": 100},
+			"d": map[string]any{"path": filepath.Join(vaults, "missing"), "ts": 900, "open": true},
+			"e": map[string]any{"path": filepath.Join(w.root, "llm-wiki"), "ts": 950},
+			"f": map[string]any{"path": w.home, "ts": 990},
+		})
+		r := setup(w, t.TempDir())
+		if r.code != 0 || !strings.Contains(r.stdout, "Obsidian Vault 자동 감지") || !strings.Contains(r.stdout, filepath.Join(vaults, "chosen")) || !strings.Contains(r.stdout, "--vault") {
+			t.Fatal(r)
+		}
+		linkedTo(t, w, filepath.Join(vaults, "chosen"))
+		if got := listDir(t, filepath.Join(vaults, "older")); strings.Join(got, ",") != ".obsidian,note.md" {
+			t.Fatal("other vault touched", got)
+		}
+		// Rerun keeps the link, and --vault does not replace an existing workspace.
+		r = setup(w, t.TempDir(), "--vault", filepath.Join(vaults, "older"))
+		if r.code != 0 || !strings.Contains(r.stdout, "workspace: 기존 링크 사용") || !strings.Contains(r.stdout, "--vault 무시") {
+			t.Fatal(r)
+		}
+		linkedTo(t, w, filepath.Join(vaults, "chosen"))
+	})
+
+	t.Run("vault flag", func(t *testing.T) {
+		w, vaults := fresh(t)
+		writeObsidian(t, map[string]any{"b": map[string]any{"path": filepath.Join(vaults, "chosen"), "ts": 200, "open": true}})
+		for _, bad := range []string{"nowhere", filepath.Join(vaults, "open-wiki"), filepath.Join(w.root, "inside"), w.home} {
+			if bad == filepath.Join(w.root, "inside") {
+				must(t, os.MkdirAll(bad, 0o755))
+			}
+			if r := setup(w, vaults, "--vault", bad); r.code != 1 || exists(filepath.Join(w.root, "workspace")) || exists(filepath.Join(w.root, "llm-wiki")) {
+				t.Fatal(bad, r)
+			}
+		}
+		r := setup(w, vaults, "--vault", "older") // relative to the current folder
+		if r.code != 0 || !strings.Contains(r.stdout, "--vault의 Vault에 연결") {
+			t.Fatal(r)
+		}
+		linkedTo(t, w, filepath.Join(vaults, "older"))
+		if strings.Join(listDir(t, filepath.Join(vaults, "chosen")), ",") != ".obsidian,note.md" {
+			t.Fatal("detected vault used despite --vault")
+		}
+	})
+
+	t.Run("new folder", func(t *testing.T) {
+		w, _ := fresh(t)
+		r := setup(w, t.TempDir())
+		ws := filepath.Join(w.root, "workspace")
+		if _, err := os.Readlink(ws); r.code != 0 || err == nil || !isDir(filepath.Join(ws, "wiki-changes")) || !strings.Contains(r.stdout, "새 폴더 생성") {
+			t.Fatal(r)
+		}
+	})
+
+	t.Run("dangling link", func(t *testing.T) {
+		w, vaults := fresh(t)
+		gone := filepath.Join(vaults, "gone")
+		must(t, os.MkdirAll(gone, 0o755))
+		must(t, os.MkdirAll(w.root, 0o755))
+		must(t, linkDir(gone, filepath.Join(w.root, "workspace")))
+		must(t, os.Remove(gone))
+		if r := setup(w, t.TempDir()); r.code != 1 || !strings.Contains(r.stderr, "링크의 대상이 없음") {
+			t.Fatal(r)
+		}
+	})
+}
+
+func TestDetectVaultPrefersOpenThenRecent(t *testing.T) {
+	setHome(t, resolvePath(t.TempDir(), ""))
+	root := filepath.Join(resolvePath(t.TempDir(), ""), "company-wiki")
+	dir := resolvePath(t.TempDir(), "")
+	for _, v := range []string{"x", "y", "z"} {
+		must(t, os.MkdirAll(filepath.Join(dir, v), 0o755))
+	}
+	if got, _ := detectVault(root); got != "" {
+		t.Fatal("no obsidian.json", got)
+	}
+	writeObsidian(t, map[string]any{"x": map[string]any{"path": filepath.Join(dir, "x"), "ts": 300}, "y": map[string]any{"path": filepath.Join(dir, "y"), "ts": 100, "open": true}})
+	if got, _ := detectVault(root); got != filepath.Join(dir, "y") {
+		t.Fatal("open vault not preferred", got)
+	}
+	writeObsidian(t, map[string]any{"x": map[string]any{"path": filepath.Join(dir, "x"), "ts": 100}, "z": map[string]any{"path": filepath.Join(dir, "z"), "ts": 300}})
+	if got, _ := detectVault(root); got != filepath.Join(dir, "z") {
+		t.Fatal("latest vault not preferred", got)
 	}
 }

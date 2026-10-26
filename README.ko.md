@@ -89,20 +89,28 @@ irm https://raw.githubusercontent.com/boaz-hwang/company-wiki/main/install.ps1 |
 
 스크립트가 OS와 CPU에 맞는 파일을 [GitHub Releases](https://github.com/boaz-hwang/company-wiki/releases)에서 받아 `~/.local/bin`에 둡니다(Windows는 `%LOCALAPPDATA%\Programs\company-wiki`에 두고 사용자 PATH에 추가). `company-wiki version`으로 확인합니다. 소스로 빌드하려면 `go install github.com/boaz-hwang/company-wiki/cmd/company-wiki@latest`.
 
-작업 공간을 직접 만들 때는 작업 공간 폴더에서 setup을 실행합니다. 원천 종류가 체크박스로 나오고, ↑↓로 이동하고 space로 선택한 뒤 enter로 넘어가 경로를 입력합니다. 없는 경로는 받지 않습니다.
+setup은 어느 폴더에서 실행해도 항상 `~/company-wiki`(Windows: `%USERPROFILE%\company-wiki`)를 준비하며 기존 파일을 바꾸지 않습니다. 터미널에서는 원천 종류가 체크박스로 나오고, ↑↓로 이동하고 space로 선택한 뒤 enter로 넘어가 경로를 입력합니다. 없는 경로는 받지 않습니다.
 
 ```bash
-cd /path/to/workspace && company-wiki setup
+company-wiki setup
 ```
 
-에이전트는 터미널 질문에 답할 수 없으므로, 등록할 원천과 경로를 사용자에게 먼저 묻고 옵션으로 넘깁니다(`company-wiki setup --list-kinds`로 종류 확인). 나중에 `--source`로 다시 실행하면 기존 설정에 원천을 추가하며, 같은 종류·경로로 이미 등록된 원천은 건너뜁니다.
+에이전트는 터미널 질문에 답할 수 없으므로, 등록할 원천과 경로를 사용자에게 먼저 묻고 옵션으로 넘깁니다(`company-wiki setup --list-kinds`로 종류 확인). `--source`의 상대 경로는 현재 폴더 기준이며 절대 경로(홈 아래면 `~/…`)로 저장됩니다. 나중에 `--source`로 다시 실행하면 원천을 추가하며, 같은 종류·경로로 이미 등록된 원천은 건너뜁니다.
 
 ```bash
-company-wiki setup --source documents=../docs --source slack=../exports/slack \
-  --source code:server=../server --source claude=~/.claude/projects/-path-to-project
+cd ~/projects && company-wiki setup --source documents=docs --source slack=exports/slack \
+  --source code:server=server --source claude=~/.claude/projects/-path-to-project
 ```
 
-또는 작업 공간 폴더를 코딩 에이전트로 열고 괄호를 채워 붙여 넣으세요.
+### 온보딩
+
+1. 위의 실행 파일을 설치합니다. 팀 위키에 합류한다면 먼저 그 저장소를 `~/company-wiki/llm-wiki`에 clone합니다. setup은 이미 있는 파일을 유지합니다.
+2. `company-wiki setup --source …`를 실행합니다. `~/company-wiki` 아래에 `wiki.toml`, `llm-wiki/`(폴더·SCHEMA.md·index), `workspace/wiki-changes/`, 스킬, `AGENTS.md`가 생깁니다.
+3. `workspace/`는 개인 Vault이며 질문 없이 정해집니다. `workspace` 폴더나 링크가 이미 있으면 그대로 쓰고, 없으면 `--vault <폴더>`, 그다음 Obsidian 설정 `obsidian.json`에서 찾은 Vault(열린 Vault, 없으면 최근 사용한 Vault. `wiki.toml`이 있거나 `~/company-wiki` 안에 있는 Vault는 제외)에 연결하고, 둘 다 없으면 빈 폴더를 만듭니다. Vault 안에는 `wiki-changes/`만 추가하고 기존 내용은 옮기거나 바꾸지 않습니다. 어느 경우가 적용됐는지 setup이 출력합니다. Vault를 바꾸려면 링크만 지우고(`rm ~/company-wiki/workspace`, Windows는 `rmdir`) `--vault`로 다시 실행합니다.
+4. `llm-wiki/`가 아직 Git 저장소가 아니면 `git -C ~/company-wiki/llm-wiki init`으로 만들고 팀 원격 저장소를 연결합니다.
+5. `~/company-wiki`를 Claude Code나 Codex로 엽니다. 명령은 어느 폴더에서나 동작합니다.
+
+또는 아무 폴더나 코딩 에이전트로 열고 괄호를 채워 붙여 넣으세요.
 
 ```text
 [조직 또는 팀]이 채택한 지식으로 LLM 위키를 만들거야.
@@ -113,7 +121,7 @@ company-wiki README(https://github.com/boaz-hwang/company-wiki)와
 - 문서·프로젝트 경로: [...]
 - Slack·Jira·Notion·Confluence: [내보낸 폴더와 대상 채널·프로젝트·스페이스, 또는 없음]
 - 관련 세션·메모리: [위치 또는 확인 필요]
-- 위키 위치와 Git 저장소: [경로 또는 확인 필요]
+- 위키 Git 저장소(~/company-wiki/llm-wiki에 clone): [원격 저장소 또는 확인 필요]
 - 영역별 담당자: [예: product: product-owner, 또는 확인 필요]
 - 제외할 자료: [없음 또는 범위]
 
@@ -161,7 +169,7 @@ company-wiki registry record concepts/x        # 페이지를 재확인한 뒤 �
 | 검토·수정·반영 | “1, 2번은 반영하고 3번은 이 표현으로 고쳐줘.” | [wiki-review](skills/wiki-review/SKILL.md) |
 | 근거 있는 답 | “위키 기준으로 코드 리뷰 규칙이 뭐야?” | [wiki-query](skills/wiki-query/SKILL.md) |
 
-setup이 바이너리에 들어 있는 스킬 4개를 프로젝트의 `.claude/skills/`와 `.agents/skills/`에 복사합니다. 업그레이드 후 다시 실행하면 복사본을 갱신하고, 사용자가 고친 스킬은 보존합니다.
+setup이 바이너리에 들어 있는 스킬 4개를 `~/company-wiki/.claude/skills/`와 `.agents/skills/`에 복사합니다. 업그레이드 후 다시 실행하면 복사본을 갱신하고, 사용자가 고친 스킬은 보존합니다.
 
 ## 설정
 

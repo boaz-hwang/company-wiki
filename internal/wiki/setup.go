@@ -2,6 +2,7 @@ package wiki
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -15,23 +16,33 @@ import (
 	companywiki "github.com/boaz-hwang/company-wiki"
 )
 
-const setupHelp = `Prepare a wiki workspace without replacing existing files.
+const setupHelp = `Prepare ~/company-wiki (Windows: %USERPROFILE%\\company-wiki) without replacing existing files.
 
-  company-wiki setup                                   새 작업 공간이면 원천을 체크박스로 고른다 (터미널)
+  company-wiki setup                                   새 설정이면 원천을 체크박스로 고른다 (터미널)
   company-wiki setup --source documents=~/docs --source claude=~/.claude/projects/X
                                                        에이전트·스크립트용. 기존 설정에는 원천을 추가한다
                                                        (같은 종류·경로로 이미 등록된 원천은 건너뛴다)
+  company-wiki setup --vault ~/Documents/MyVault       workspace를 이 Vault에 연결 (workspace가 없을 때)
   company-wiki setup --list-kinds                      등록할 수 있는 원천 종류
 
-wiki.toml은 WIKI_CONFIG, 없으면 현재 폴더부터 위로 찾은 wiki.toml, 그것도 없으면 현재 폴더에 만든다.`
+현재 폴더와 관계없이 ~/company-wiki에 wiki.toml, llm-wiki/(위키), workspace/wiki-changes/(변경 절차 폴더),
+스킬, AGENTS.md를 만든다. WIKI_CONFIG는 setup에 쓰지 않는다.
+--source의 상대 경로는 현재 폴더 기준이며 절대 경로(홈 아래면 ~/…)로 저장한다.
+workspace가 있으면 그대로 쓴다. 없으면 --vault의 폴더, 그다음 Obsidian 설정에서 찾은 Vault에 연결하고,
+둘 다 없으면 빈 폴더를 만든다. Vault 안에는 wiki-changes/만 만들고 기존 내용은 건드리지 않는다.`
 
 // copyMarker marks a skill folder this tool installed and may refresh.
 const copyMarker = ".company-wiki-copy.json"
 
-// Setup runs `company-wiki setup`.
+// Setup runs `company-wiki setup`. It always prepares the fixed root, ~/company-wiki.
 func Setup(args []string, x IO) int {
 	var specs []sourceSpec
 	listKinds := false
+	vault := ""
+	fail := func(err error) int {
+		fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
+		return 1
+	}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
@@ -41,19 +52,22 @@ func Setup(args []string, x IO) int {
 			i++
 			s, err := parseSpec(args[i])
 			if err != nil {
-				fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-				return 1
+				return fail(err)
 			}
 			specs = append(specs, s)
 		case strings.HasPrefix(a, "--source="):
 			s, err := parseSpec(strings.TrimPrefix(a, "--source="))
 			if err != nil {
-				fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-				return 1
+				return fail(err)
 			}
 			specs = append(specs, s)
+		case a == "--vault" && i+1 < len(args):
+			i++
+			vault = args[i]
+		case strings.HasPrefix(a, "--vault="):
+			vault = strings.TrimPrefix(a, "--vault=")
 		case a == "-h" || a == "--help":
-			fmt.Fprintln(x.Stdout, setupHelp)
+			io.WriteString(x.Stdout, setupHelp+"\n")
 			return 0
 		default:
 			fmt.Fprintf(x.Stderr, "unknown argument %q\n\n%s\n", a, setupHelp)
@@ -64,32 +78,54 @@ func Setup(args []string, x IO) int {
 		fmt.Fprintln(x.Stdout, KindsText())
 		return 0
 	}
-	config, explicit, err := FindConfig(x.Env, x.Dir)
-	if err != nil {
-		fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-		return 1
+	if vault != "" && strings.TrimSpace(vault) == "" {
+		return fail(errors.New("--vault needs a folder path"))
 	}
-	base := filepath.Dir(config)
+	base, err := DefaultRoot()
+	if err != nil {
+		return fail(err)
+	}
+	if vault != "" {
+		vault = vaultPath(vault, x.Dir)
+		// A bad --vault fails before anything is written; an existing workspace makes it unused.
+		if _, err := os.Lstat(filepath.Join(base, "workspace")); err != nil {
+			if reason := vaultProblem(vault, base); reason != "" {
+				return fail(fmt.Errorf("--vault %s: %s", vault, reason))
+			}
+		}
+	}
+	config := filepath.Join(base, "wiki.toml")
+	// Always the fixed root's config, whatever WIKI_CONFIG or the current folder says.
+	env := func(k string) string {
+		if k == "WIKI_CONFIG" {
+			return config
+		}
+		return x.Env(k)
+	}
+	if isFile(config) {
+		// Reject an unsupported config before changing anything.
+		if _, err := LoadConfig(env, x.Dir); err != nil {
+			return fail(err)
+		}
+	}
 	if err := os.MkdirAll(base, 0o755); err != nil {
-		fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-		return 1
+		return fail(err)
 	}
 	if !isFile(config) {
 		if len(specs) == 0 {
 			if !isTerminal(x.Stdin) || !isTerminal(x.Stdout) {
 				fmt.Fprintf(x.Stderr, "등록할 원천을 --source kind=path 로 지정하세요. 에이전트는 사용자에게 원천 종류와 경로를 먼저 묻는다.\n"+
-					"종류:\n%s\n예: company-wiki setup --source documents=../docs --source slack=../exports/slack\n", KindsText())
+					"종류:\n%s\n예: company-wiki setup --source documents=~/docs --source slack=~/exports/slack\n", KindsText())
 				return 2
 			}
-			if specs, err = askSources(x, base); err != nil {
+			if specs, err = askSources(x, x.Dir); err != nil {
 				fmt.Fprintf(x.Stderr, "%v\n", err)
 				return 1
 			}
 		}
-		blocks, notices, err := sourceBlocks(specs, map[string]bool{}, nil, base)
+		blocks, notices, err := sourceBlocks(specs, map[string]bool{}, nil, x.Dir)
 		if err != nil {
-			fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-			return 1
+			return fail(err)
 		}
 		printLines(x.Stdout, notices)
 		text := wikiBlock
@@ -97,19 +133,16 @@ func Setup(args []string, x IO) int {
 			text += "\n" + b
 		}
 		if err := os.WriteFile(config, []byte(text), 0o644); err != nil {
-			fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-			return 1
+			return fail(err)
 		}
 	} else if len(specs) > 0 {
 		raw, err := os.ReadFile(config)
 		if err != nil {
-			fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-			return 1
+			return fail(err)
 		}
 		data, err := parseTOML(string(raw))
 		if err != nil {
-			fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-			return 1
+			return fail(err)
 		}
 		taken := map[string]bool{}
 		var known []registered
@@ -121,14 +154,14 @@ func Setup(args []string, x IO) int {
 				p, _ := entry["path"].(string)
 				enabled, isBool := entry["enabled"].(bool)
 				if kind != "" && p != "" {
+					// Registered paths resolve from wiki.toml; new --source paths from the current folder.
 					known = append(known, registered{alias, kind, resolvePath(expandUser(p), base), enabled || !isBool})
 				}
 			}
 		}
-		blocks, notices, err := sourceBlocks(specs, taken, known, base)
+		blocks, notices, err := sourceBlocks(specs, taken, known, x.Dir)
 		if err != nil {
-			fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-			return 1
+			return fail(err)
 		}
 		printLines(x.Stdout, notices)
 		// Nothing new: leave wiki.toml byte for byte as it was.
@@ -138,30 +171,23 @@ func Setup(args []string, x IO) int {
 				text += "\n" + b
 			}
 			if err := os.WriteFile(config, []byte(text), 0o644); err != nil {
-				fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-				return 1
+				return fail(err)
 			}
-		}
-	}
-	env := x.Env
-	if !explicit {
-		// Use the config this run created or found, not one higher up.
-		env = func(k string) string {
-			if k == "WIKI_CONFIG" {
-				return config
-			}
-			return x.Env(k)
 		}
 	}
 	c, err := LoadConfig(env, x.Dir)
-	if err == nil {
-		err = prepareWorkspace(c, x.Stdout)
-	}
 	if err != nil {
-		fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-		return 1
+		return fail(err)
 	}
-	fmt.Fprintf(x.Stdout, "Wiki ready: %s (change materials: %s)\n", c.WikiRoot, c.ChangesRoot)
+	if err := setupVault(c.Root, vault, x.Stdout); err != nil {
+		return fail(err)
+	}
+	// The workspace may now be a link to a vault; resolve the change materials through it.
+	c.ChangesRoot = resolvePath(changesDir, c.Root)
+	if err := prepareWorkspace(c, x.Stdout); err != nil {
+		return fail(err)
+	}
+	fmt.Fprintf(x.Stdout, "Wiki ready: %s\nChange materials: %s\n", c.WikiRoot, c.ChangesRoot)
 	for _, s := range c.Sources {
 		mark := ""
 		if root, ok := c.ExtraRoots[s.Alias]; ok && !exists(root) {
@@ -182,14 +208,15 @@ type registered struct {
 	enabled           bool
 }
 
-// sourceBlocks returns the TOML blocks for new sources and notices for skipped ones. A source with the
-// same kind and resolved path as a registered one is skipped, even under another alias; the same path
-// with another kind is a different source.
-func sourceBlocks(specs []sourceSpec, taken map[string]bool, known []registered, base string) ([]string, []string, error) {
+// sourceBlocks returns the TOML blocks for new sources and notices for skipped ones. Spec paths resolve
+// from cwd and are written absolute, or as ~/… under the home folder. A source with the same kind and
+// resolved path as a registered one is skipped, even under another alias; the same path with another
+// kind is a different source.
+func sourceBlocks(specs []sourceSpec, taken map[string]bool, known []registered, cwd string) ([]string, []string, error) {
 	var out, notices []string
 next:
 	for _, s := range specs {
-		root := resolvePath(expandUser(s.path), base)
+		root := resolvePath(expandUser(s.path), cwd)
 		if !exists(root) {
 			return nil, nil, fmt.Errorf("원천 경로가 없습니다: %s %s", s.kind, s.path)
 		}
@@ -216,7 +243,7 @@ next:
 			return nil, nil, fmt.Errorf("이미 등록된 원천 별칭입니다: %s", alias)
 		}
 		taken[alias] = true
-		block, err := sourceBlock(alias, s.kind, s.path)
+		block, err := sourceBlock(alias, s.kind, storedPath(s.path, cwd))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -224,6 +251,28 @@ next:
 		known = append(known, registered{alias, s.kind, root, true})
 	}
 	return out, notices, nil
+}
+
+// storedPath makes p absolute against cwd without resolving links, and writes it as ~/… under the home folder.
+func storedPath(p, cwd string) string {
+	abs := expandUser(p)
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(cwd, abs)
+	}
+	abs = filepath.Clean(abs)
+	if home, err := os.UserHomeDir(); err == nil {
+		// Compare as written, then with links resolved (macOS /tmp is /private/tmp).
+		for _, pair := range [][2]string{{abs, filepath.Clean(home)}, {resolvePath(abs, ""), resolvePath(home, "")}} {
+			if pair[0] == pair[1] {
+				return "~"
+			}
+			if within(pair[0], pair[1]) {
+				rel, _ := filepath.Rel(pair[1], pair[0])
+				return "~/" + filepath.ToSlash(rel)
+			}
+		}
+	}
+	return abs
 }
 
 func mapKeys(m map[string]any) map[string]bool {
@@ -240,7 +289,7 @@ func printLines(out io.Writer, lines []string) {
 	}
 }
 
-func askSources(x IO, base string) ([]sourceSpec, error) {
+func askSources(x IO, cwd string) ([]sourceSpec, error) {
 	in, _ := x.Stdin.(*os.File)
 	items := make([]item, len(kindOrder))
 	for i, k := range kindOrder {
@@ -253,7 +302,7 @@ func askSources(x IO, base string) ([]sourceSpec, error) {
 	reader := newLineReader(rest, in, x.Stdout)
 	var specs []sourceSpec
 	for _, kind := range kinds {
-		def := defaultPath(kind, base)
+		def := defaultPath(kind, cwd)
 		for {
 			prompt := kind + " 경로"
 			if def != "" {
@@ -272,7 +321,7 @@ func askSources(x IO, base string) ([]sourceSpec, error) {
 			for _, p := range strings.Split(answer, ",") {
 				if p = strings.TrimSpace(p); p != "" {
 					paths = append(paths, p)
-					if !exists(resolvePath(expandUser(p), base)) {
+					if !exists(resolvePath(expandUser(p), cwd)) {
 						missing = append(missing, p)
 					}
 				}

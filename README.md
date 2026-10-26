@@ -89,20 +89,28 @@ irm https://raw.githubusercontent.com/boaz-hwang/company-wiki/main/install.ps1 |
 
 The script downloads the release for your OS and CPU from [GitHub Releases](https://github.com/boaz-hwang/company-wiki/releases) into `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\company-wiki`, added to your user PATH). Check with `company-wiki version`. To build from source instead: `go install github.com/boaz-hwang/company-wiki/cmd/company-wiki@latest`.
 
-To set up a workspace yourself, run setup in a terminal inside the workspace folder. It shows a checklist of source kinds: move with ↑↓, toggle with space, confirm with enter, then type each path. Paths that do not exist are rejected.
+Run setup from any folder. It always prepares `~/company-wiki` (Windows: `%USERPROFILE%\company-wiki`) and never replaces existing files. In a terminal it shows a checklist of source kinds: move with ↑↓, toggle with space, confirm with enter, then type each path. Paths that do not exist are rejected.
 
 ```bash
-cd /path/to/workspace && company-wiki setup
+company-wiki setup
 ```
 
-Agents cannot answer terminal prompts, so they ask you which sources and paths to register and pass them as options (`company-wiki setup --list-kinds` shows the kinds). Run with `--source` again later to add sources to an existing config; a source already registered with the same kind and path is skipped.
+Agents cannot answer terminal prompts, so they ask you which sources and paths to register and pass them as options (`company-wiki setup --list-kinds` shows the kinds). Relative `--source` paths are from the current folder and are saved as absolute paths (`~/…` under your home). Run with `--source` again later to add sources; a source already registered with the same kind and path is skipped.
 
 ```bash
-company-wiki setup --source documents=../docs --source slack=../exports/slack \
-  --source code:server=../server --source claude=~/.claude/projects/-path-to-project
+cd ~/projects && company-wiki setup --source documents=docs --source slack=exports/slack \
+  --source code:server=server --source claude=~/.claude/projects/-path-to-project
 ```
 
-Or open the workspace folder in your coding agent, fill in the brackets, and paste:
+### Onboarding
+
+1. Install the binary (above). To join an existing team wiki, clone its repository to `~/company-wiki/llm-wiki` first; setup keeps the files that are there.
+2. Run `company-wiki setup --source …`. It creates `wiki.toml`, `llm-wiki/` (folders, SCHEMA.md, index), `workspace/wiki-changes/`, the skills, and `AGENTS.md` under `~/company-wiki`.
+3. `workspace/` is your own vault, set up without questions: an existing `workspace` folder or link is kept; otherwise it links to `--vault <folder>`, else to your Obsidian vault found in Obsidian's `obsidian.json` (the open vault, else the most recently used; vaults holding a `wiki.toml` or inside `~/company-wiki` are skipped), else an empty folder is created. Only `wiki-changes/` is added inside the vault; nothing in it is moved or changed. Setup prints which case applied. To change the vault, remove just the link (`rm ~/company-wiki/workspace`, Windows `rmdir`) and rerun with `--vault`.
+4. Make `llm-wiki/` a Git repository if it is not one yet (`git -C ~/company-wiki/llm-wiki init`) and add the team remote.
+5. Open `~/company-wiki` in Claude Code or Codex. Commands work from any folder.
+
+Or open any folder in your coding agent, fill in the brackets, and paste:
 
 ```text
 I want to build an LLM wiki of the knowledge [organization or team] has adopted.
@@ -113,7 +121,7 @@ SCHEMA and skills that `company-wiki setup` installs.
 - Docs and project paths: [...]
 - Slack, Jira, Notion, Confluence: [export folders and spaces/projects in scope, or none]
 - Related sessions and memory: [location, or check with me]
-- Wiki location and Git repository: [path, or check with me]
+- Wiki Git repository (cloned to ~/company-wiki/llm-wiki): [remote, or check with me]
 - Owners by area: [e.g. product: product-owner, or check with me]
 - Material to exclude: [none, or the scope]
 
@@ -164,7 +172,7 @@ The agent detects problems, tells the owner, and proposes fixes; it never invali
 | Review, revise, apply | "Apply proposals 1 and 2, and revise 3 with this wording." | [wiki-review](skills/wiki-review/SKILL.md) |
 | Answers with evidence | "Based on the wiki, what is our code review rule?" | [wiki-query](skills/wiki-query/SKILL.md) |
 
-Setup copies the 4 skills bundled in the binary into the project's `.claude/skills/` and `.agents/skills/`. Running it again after an upgrade refreshes those copies and keeps skills you edited.
+Setup copies the 4 skills bundled in the binary into `~/company-wiki/.claude/skills/` and `.agents/skills/`. Running it again after an upgrade refreshes those copies and keeps skills you edited.
 
 ## Configuration
 
