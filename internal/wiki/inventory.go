@@ -184,14 +184,15 @@ func pyList(items []string) string {
 
 // InventoryCmd exits 0 when the record is complete, 2 when valid but incomplete with --require-complete, 1 on format errors.
 func InventoryCmd(c *Config, args []string, out io.Writer) int {
-	opts, pos, err := parseFlags(args, nil, map[string]bool{"require-complete": true})
-	if err != nil || len(pos) != 1 {
-		fmt.Fprintln(out, `{"error": "usage: company-wiki inventory <inventory.json> [--require-complete]"}`)
-		return 1
-	}
+	// Every result, including usage errors, is one compact JSON line from the same encoder.
 	report := func(v any) {
 		b, _ := jsonLine(v)
 		out.Write(b)
+	}
+	opts, pos, err := parseFlags(args, nil, map[string]bool{"require-complete": true})
+	if err != nil || len(pos) != 1 {
+		report(map[string]string{"error": "usage: company-wiki inventory <inventory.json> [--require-complete]"})
+		return 1
 	}
 	raw, err := os.ReadFile(pos[0])
 	if err != nil {

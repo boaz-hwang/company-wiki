@@ -123,6 +123,37 @@ func TestInventoryExitCodes(t *testing.T) {
 	}
 }
 
+// Usage, read, parse, validation errors and results share one compact JSON line format.
+func TestInventoryOutputsUseOneFormat(t *testing.T) {
+	c := inventoryConfig()
+	dir := t.TempDir()
+	valid := filepath.Join(dir, "valid.json")
+	b, _ := json.Marshal(inventoryRecord(c))
+	must(t, os.WriteFile(valid, b, 0o644))
+	broken := filepath.Join(dir, "broken.json")
+	must(t, os.WriteFile(broken, []byte("{"), 0o644))
+	invalid := filepath.Join(dir, "invalid.json")
+	must(t, os.WriteFile(invalid, []byte("{}"), 0o644))
+	for _, args := range [][]string{{}, {"a", "b"}, {"--bogus", valid}, {filepath.Join(dir, "absent.json")}, {broken}, {invalid}, {valid}} {
+		var out bytes.Buffer
+		InventoryCmd(c, args, &out)
+		line := out.String()
+		var v map[string]any
+		if strings.Count(line, "\n") != 1 || !strings.HasSuffix(line, "\n") || json.Unmarshal([]byte(line), &v) != nil {
+			t.Fatal(args, line)
+		}
+		again, _ := jsonLine(v)
+		if _, isErr := v["error"]; isErr && string(again) != line || strings.Contains(line, "\": ") || strings.Contains(line, ", \"") {
+			t.Fatal("not compact", args, line)
+		}
+	}
+	var out bytes.Buffer
+	InventoryCmd(c, nil, &out)
+	if out.String() != `{"error":"usage: company-wiki inventory <inventory.json> [--require-complete]"}`+"\n" {
+		t.Fatal(out.String())
+	}
+}
+
 // Session provenance: original line numbers, full text, and Codex deduplication.
 func runSession(t *testing.T, records []any, args ...string) result {
 	dir := t.TempDir()
