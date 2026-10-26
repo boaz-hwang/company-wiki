@@ -91,19 +91,28 @@ func vaultProblem(path, root string) string {
 
 // obsidianConfigs lists where Obsidian keeps obsidian.json on this OS.
 func obsidianConfigs() []string {
-	var dirs []string
-	if d, err := os.UserConfigDir(); err == nil {
-		dirs = append(dirs, d) // macOS ~/Library/Application Support, Windows %APPDATA%, else $XDG_CONFIG_HOME or ~/.config
+	home, _ := os.UserHomeDir()
+	config, _ := os.UserConfigDir() // macOS ~/Library/Application Support, Windows %APPDATA%, else $XDG_CONFIG_HOME or ~/.config
+	return obsidianConfigsFor(runtime.GOOS, home, config)
+}
+
+// obsidianConfigsFor lists obsidian.json locations for goos. On Linux the Flatpak and Snap packages keep
+// their own config folders besides $XDG_CONFIG_HOME and ~/.config.
+func obsidianConfigsFor(goos, home, config string) []string {
+	var files []string
+	if config != "" {
+		files = append(files, filepath.Join(config, "obsidian", "obsidian.json"))
 	}
-	if runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
-		if home, err := os.UserHomeDir(); err == nil {
-			dirs = append(dirs, filepath.Join(home, ".config"))
-		}
+	if goos != "darwin" && goos != "windows" && home != "" {
+		files = append(files,
+			filepath.Join(home, ".config", "obsidian", "obsidian.json"),
+			filepath.Join(home, ".var", "app", "md.obsidian.Obsidian", "config", "obsidian", "obsidian.json"), // Flatpak
+			filepath.Join(home, "snap", "obsidian", "current", ".config", "obsidian", "obsidian.json"),       // Snap
+		)
 	}
 	var out []string
 	seen := map[string]bool{}
-	for _, d := range dirs {
-		p := filepath.Join(d, "obsidian", "obsidian.json")
+	for _, p := range files {
 		if !seen[p] {
 			seen[p] = true
 			out = append(out, p)
@@ -122,12 +131,16 @@ type obsidianVault struct {
 // missing, hold a wiki.toml, or sit inside or around root are skipped. It returns the vault and the
 // obsidian.json it came from.
 func detectVault(root string) (string, string) {
+	return detectVaultIn(root, obsidianConfigs())
+}
+
+func detectVaultIn(root string, files []string) (string, string) {
 	type candidate struct {
 		obsidianVault
 		from string
 	}
 	var found []candidate
-	for _, file := range obsidianConfigs() {
+	for _, file := range files {
 		data, err := os.ReadFile(file)
 		if err != nil {
 			continue

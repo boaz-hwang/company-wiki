@@ -892,6 +892,39 @@ func TestDetectVaultPrefersOpenThenRecent(t *testing.T) {
 	}
 }
 
+// Linux Obsidian installed as Flatpak or Snap keeps obsidian.json in the package's own folder.
+func TestObsidianConfigsIncludeFlatpakAndSnap(t *testing.T) {
+	home := resolvePath(t.TempDir(), "")
+	xdg := filepath.Join(home, "xdg")
+	flatpak := filepath.Join(home, ".var", "app", "md.obsidian.Obsidian", "config", "obsidian", "obsidian.json")
+	snap := filepath.Join(home, "snap", "obsidian", "current", ".config", "obsidian", "obsidian.json")
+	linux := obsidianConfigsFor("linux", home, xdg)
+	want := []string{filepath.Join(xdg, "obsidian", "obsidian.json"), filepath.Join(home, ".config", "obsidian", "obsidian.json"), flatpak, snap}
+	if strings.Join(linux, "|") != strings.Join(want, "|") {
+		t.Fatal(linux)
+	}
+	if got := obsidianConfigsFor("linux", home, filepath.Join(home, ".config")); len(got) != 3 {
+		t.Fatal("~/.config listed twice", got)
+	}
+	for _, goos := range []string{"darwin", "windows"} {
+		if got := obsidianConfigsFor(goos, home, xdg); len(got) != 1 {
+			t.Fatal(goos, got)
+		}
+	}
+	root := filepath.Join(home, "company-wiki")
+	for _, file := range []string{flatpak, snap} {
+		vault := filepath.Join(home, "vault-"+filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(file)))))
+		must(t, os.MkdirAll(vault, 0o755))
+		data, _ := json.Marshal(map[string]any{"vaults": map[string]any{"v": map[string]any{"path": vault, "ts": 1, "open": true}}})
+		must(t, os.MkdirAll(filepath.Dir(file), 0o755))
+		must(t, os.WriteFile(file, data, 0o644))
+		if got, from := detectVaultIn(root, linux); got != vault || from != file {
+			t.Fatal(file, got, from)
+		}
+		must(t, os.Remove(file))
+	}
+}
+
 func TestLintRejectsChangeMaterialsInWiki(t *testing.T) {
 	w := newWS(t)
 	w.ok("setup")
