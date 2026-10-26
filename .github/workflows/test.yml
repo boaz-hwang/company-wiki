@@ -41,8 +41,13 @@ jobs:
           Set-Content -Path (Join-Path $vault 'note.md') -Value 'my note'
           Push-Location $project
           try {
-            & $exe setup --source documents=docs --vault $vault
+            [Console]::OutputEncoding = [Text.Encoding]::UTF8
+            $out = & $exe setup --source documents=docs --vault $vault | Out-String
             if ($LASTEXITCODE -ne 0) { throw 'setup failed' }
+            Write-Output $out
+            # Through the junction the vault's own folder is printed, not ~\company-wiki\workspace.
+            if (-not $out.Contains('Change materials: ' + (Join-Path $vault 'wiki-changes'))) { throw 'change materials not shown in the vault' }
+            if (-not $out.Contains(' ' + $vault + [Environment]::NewLine)) { throw 'link target not shown' }
             $root = Join-Path $env:USERPROFILE 'company-wiki'
             if (-not (Test-Path (Join-Path $root 'llm-wiki\index.md'))) { throw 'wiki not created' }
             if (-not (Select-String -Path (Join-Path $root 'wiki.toml') -SimpleMatch -Quiet ("path = '" + (Join-Path $project 'docs') + "'"))) { throw 'source path not absolute' }

@@ -841,8 +841,12 @@ func TestSetupWorkspaceCases(t *testing.T) {
 			}
 		}
 		r := setup(w, vaults, "--vault", "older") // relative to the current folder
-		if r.code != 0 || !strings.Contains(r.stdout, "--vault의 Vault에 연결") {
+		if r.code != 0 || !strings.Contains(r.stdout, "--vault의 Vault에 연결") || !strings.Contains(r.stdout, "→ "+filepath.Join(vaults, "older")+"\n") ||
+			!strings.Contains(r.stdout, "Change materials: "+filepath.Join(vaults, "older", "wiki-changes")+"\n") {
 			t.Fatal(r)
+		}
+		if !strings.Contains(w.read("AGENTS.md"), filepath.Join(vaults, "older", "wiki-changes")) {
+			t.Fatal("pointer does not name the vault folder")
 		}
 		linkedTo(t, w, filepath.Join(vaults, "older"))
 		if strings.Join(listDir(t, filepath.Join(vaults, "chosen")), ",") != ".obsidian,note.md" {

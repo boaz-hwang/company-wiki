@@ -178,8 +178,8 @@ func Setup(args []string, x IO) int {
 	if err := setupVault(c.Root, vault, x.Stdout); err != nil {
 		return fail(err)
 	}
-	// The workspace may now be a link to a vault; resolve the change materials through it.
-	c.ChangesRoot = resolvePath(changesDir, c.Root)
+	// The workspace may now be a link to a vault; show and record the vault's own folder.
+	c.ChangesRoot = changesFolder(c.Root)
 	if err := prepareRoot(c, x.Stdout); err != nil {
 		return fail(err)
 	}

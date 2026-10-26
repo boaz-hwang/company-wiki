@@ -45,14 +45,14 @@ func setupVault(root, vault string, out io.Writer) error {
 		if err := linkDir(target, ws); err != nil {
 			return fmt.Errorf("workspace 링크 생성 실패 (%s → %s): %w", ws, target, err)
 		}
-		fmt.Fprintf(out, "workspace: --vault의 Vault에 연결 %s → %s\n%s\n", ws, target, hint)
+		fmt.Fprintf(out, "workspace: --vault의 Vault에 연결 %s → %s\n%s\n", ws, linkTarget(ws, target), hint)
 		return nil
 	}
 	if target, from := detectVault(root); target != "" {
 		if err := linkDir(target, ws); err != nil {
 			return fmt.Errorf("workspace 링크 생성 실패 (%s → %s): %w", ws, target, err)
 		}
-		fmt.Fprintf(out, "workspace: Obsidian Vault 자동 감지(%s), 연결 %s → %s\n%s\n", from, ws, target, hint)
+		fmt.Fprintf(out, "workspace: Obsidian Vault 자동 감지(%s), 연결 %s → %s\n%s\n", from, ws, linkTarget(ws, target), hint)
 		return nil
 	}
 	if err := os.MkdirAll(ws, 0o755); err != nil {
@@ -60,6 +60,28 @@ func setupVault(root, vault string, out io.Writer) error {
 	}
 	fmt.Fprintf(out, "workspace: 연결할 Vault가 없어 새 폴더 생성 %s\nVault를 쓰려면 이 폴더를 다른 이름으로 옮기고 company-wiki setup --vault <경로>로 다시 실행.\n", ws)
 	return nil
+}
+
+// linkTarget is the folder the link points to as the system reads it back, or fallback.
+func linkTarget(link, fallback string) string {
+	target, err := os.Readlink(link)
+	if err != nil {
+		return fallback
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(link), target)
+	}
+	return filepath.Clean(target)
+}
+
+// changesFolder is the change materials folder with the workspace link resolved. resolvePath already
+// follows symlinks; Windows junctions are not followed by it, so the junction is read directly.
+func changesFolder(root string) string {
+	ws := filepath.Join(root, "workspace")
+	if target, err := os.Readlink(ws); err == nil && target != "" {
+		return filepath.Join(resolvePath(linkTarget(ws, target), ""), "wiki-changes")
+	}
+	return resolvePath(changesDir, root)
 }
 
 // vaultPath makes --vault absolute against cwd without resolving links.
