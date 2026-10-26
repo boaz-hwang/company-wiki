@@ -906,16 +906,24 @@ type previewResult struct {
 	writes   map[string][]byte
 	order    []string
 	selected []selection
+	done     []string // topics whose current version is already applied
 	index    []byte
 	output   string
 	registry []byte
 }
 
 // Preview checks the merged wiki in a temporary copy with the index builder and lint.
+// Topics whose current version is already applied are reported as such and not checked again.
 func (r *Review) Preview(batch string, topics []string) (string, error) {
 	res, err := r.preview(batch, topics, false)
 	if err != nil {
 		return "", err
+	}
+	if len(res.selected) == 0 {
+		return "이미 반영됨: " + strings.Join(res.done, ", ") + ". 미리 볼 변경 없음.", nil
+	}
+	if len(res.done) > 0 {
+		return "이미 반영됨(검사에서 제외): " + strings.Join(res.done, ", ") + "\n" + res.output, nil
 	}
 	return res.output, nil
 }
@@ -929,12 +937,12 @@ func (r *Review) preview(batch string, topics []string, requireApproval bool) (*
 		if err != nil {
 			return nil, err
 		}
-		if requireApproval {
-			if done, err := r.applied(batch, topic, m.Revision); err != nil {
-				return nil, err
-			} else if done {
-				continue
-			}
+		// An applied version is part of the wiki now, so its basis is no longer compared.
+		if done, err := r.applied(batch, topic, m.Revision); err != nil {
+			return nil, err
+		} else if done {
+			res.done = append(res.done, topic)
+			continue
 		}
 		stale, err := r.stale(m)
 		if err != nil {
@@ -969,6 +977,9 @@ func (r *Review) preview(batch string, topics []string, requireApproval bool) (*
 		}
 		cards = append(cards, card)
 		res.selected = append(res.selected, selection{topic, m})
+	}
+	if len(res.selected) == 0 {
+		return res, nil
 	}
 	for rel, data := range res.writes {
 		pages[rel] = data

@@ -110,7 +110,7 @@ company-wiki review preview batch-id topic-id
 company-wiki review status batch-id
 ```
 
-prepare가 전체 revision 해시와 review.md 경로를 출력한다. preview는 임시 합본에서 index 생성과 lint를 자동 실행해 index·인용·링크를 검사한다. 이 구조 검사 뒤 근거·의미·범위 검토는 wiki-review가 수행한다. 정식 페이지나 index는 바꾸지 않는다. 서로 새 페이지를 참조하는 주제는 `preview batch-id topic-a topic-b`로 함께 검사한다.
+prepare가 전체 revision 해시와 review.md 경로를 출력한다. preview는 임시 합본에서 index 생성과 lint를 자동 실행해 index·인용·링크를 검사한다. 이 구조 검사 뒤 근거·의미·범위 검토는 wiki-review가 수행한다. 정식 페이지나 index는 바꾸지 않는다. 서로 새 페이지를 참조하는 주제는 `preview batch-id topic-a topic-b`로 함께 검사한다. 이미 반영된 버전은 preview도 “이미 반영됨”으로 알리고 검사에서 뺀다.
 
 사용자에게 보내는 최종 답변은 SKILL.md의 출력 계약에 따른 간결한 번호 질문 목록이다. 카드·검사 로그·상세 diff는 내부 검토 자료로 보존하고 질문에 필요한 맥락만 추린다. 실제 답을 기다리되 승인 대기를 이유로 준비·검사를 미루지 않는다.
 

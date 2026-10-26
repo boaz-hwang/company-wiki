@@ -212,6 +212,33 @@ func TestExactApprovalApplyReceiptAndIdempotence(t *testing.T) {
 	}
 }
 
+// After apply the page differs from the sealed before-version; preview must say applied, not "기준 변경".
+func TestPreviewOfAppliedTopicSaysApplied(t *testing.T) {
+	f := newFixture(t)
+	res := f.prepare("one", nil, nil)
+	two := f.prepare("two", one("concepts/b.md", page("b", "text", "")), nil)
+	must(t, f.approve(res, "approved"))
+	_, err := f.r.Apply("batch", []string{"one"})
+	must(t, err)
+	out, err := f.r.Preview("batch", []string{"one"})
+	if err != nil || out != "이미 반영됨: one. 미리 볼 변경 없음." {
+		t.Fatal(out, err)
+	}
+	out, err = f.r.Preview("batch", []string{"one", "two"})
+	if err != nil || !strings.HasPrefix(out, "이미 반영됨(검사에서 제외): one\n") || !strings.Contains(out, "2 pages · 0 errors") {
+		t.Fatal(out, err)
+	}
+	status, err := f.r.Status("batch")
+	must(t, err)
+	if status[0].State != "applied" || len(status[0].ChangedBasis) != 0 || status[1].Revision != two.Revision {
+		t.Fatal(status)
+	}
+	must(t, f.approve(two, "approved"))
+	if out, err := f.r.Apply("batch", []string{"one", "two"}); err != nil || !strings.Contains(out, "반영 완료: two") {
+		t.Fatal(out, err)
+	}
+}
+
 func TestOnlySelectedApprovedTopicIsApplied(t *testing.T) {
 	f := newFixture(t)
 	a := f.prepare("one", nil, nil)
