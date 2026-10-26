@@ -353,6 +353,11 @@ func RegistryCmd(c *Config, args []string, dir string, out, errOut io.Writer) in
 				fmt.Fprintf(out, "  %-10s %s (줄 %s)\n", state, h.Slug, h.Lines)
 			}
 		}
+		if _, ok := states["missing"]; ok {
+			if _, err := c.resolveResource(path); err != nil {
+				fmt.Fprintf(out, "  이유: %v\n", err)
+			}
+		}
 	}
 	printDependents(out, affected, "")
 	fmt.Fprintf(out, "\n원문 %d개 · 인용 %d개 · 확인 필요 원문 %d건 · 관계로 영향받는 페이지 %d개\n", len(data), total, attention, len(affected))

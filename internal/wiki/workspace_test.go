@@ -979,3 +979,22 @@ func TestWikiConfigIsRejectedNotIgnored(t *testing.T) {
 		}
 	}
 }
+
+// A link inside the root that points outside it is named as the reason, not shown as a bare missing file.
+func TestCitationThroughOutsideLinkExplainsWhy(t *testing.T) {
+	w := newWS(t)
+	w.ok("setup")
+	outside := resolvePath(t.TempDir(), "")
+	must(t, os.WriteFile(filepath.Join(outside, "p.md"), []byte("rule\n"), 0o644))
+	if err := os.Symlink(outside, filepath.Join(w.root, "docs-link")); err != nil {
+		t.Skip("symlinks unavailable:", err)
+	}
+	page := "---\ntype: policy\ntitle: P\ndescription: d\nowner: o\nsources:\n  - ^[/docs-link/p.md:1]\n---\nRule.^[/docs-link/p.md:1]\n"
+	must(t, os.WriteFile(filepath.Join(w.root, "llm-wiki/policies/p.md"), []byte(page), 0o644))
+	for _, args := range [][]string{{"lint"}, {"registry"}} {
+		r := w.run(args...)
+		if !strings.Contains(r.stdout, "밖(") || !strings.Contains(r.stdout, "원천으로 등록") {
+			t.Fatal(args, r.stdout, r.stderr)
+		}
+	}
+}

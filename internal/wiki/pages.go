@@ -133,7 +133,7 @@ func (c *Config) resolveResource(path string) (string, error) {
 	rel := strings.TrimLeft(path, "/")
 	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
 		if part == ".." {
-			return "", fmt.Errorf("Source path escapes its root: %s", path)
+			return "", fmt.Errorf("인용 경로에 ..를 쓸 수 없음 `%s`", path)
 		}
 	}
 	head, tail, _ := strings.Cut(rel, "/")
@@ -149,7 +149,8 @@ func (c *Config) resolveResource(path string) (string, error) {
 	}
 	target := resolvePath(filepath.FromSlash(relative), root)
 	if !within(target, resolvePath(root, "")) {
-		return "", fmt.Errorf("Source path escapes its root: %s", path)
+		// Usually a link inside the folder that points elsewhere; that folder must be its own source.
+		return "", fmt.Errorf("인용 경로 `%s`가 링크 등으로 %s 밖(%s)을 가리킴. 그 폴더를 원천으로 등록하고(company-wiki setup --source kind=경로) /별칭/파일로 인용", path, root, target)
 	}
 	return target, nil
 }
