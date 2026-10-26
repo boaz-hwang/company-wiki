@@ -10,7 +10,7 @@
 
 ---
 
-Claude Code or Codex reads your docs and AI session records, finds the knowledge your organization has actually adopted, and writes it as linked Markdown. Every rule and fact carries a `^[file:line]` citation next to it. The page owner approves each change, Git keeps the history, and the `company-wiki` CLI checks fields, links, relations, citations, and whether the cited source lines have changed since adoption.
+Claude Code or Codex reads your docs and AI session records, finds the knowledge your organization has actually adopted, and writes it as linked Markdown. Every rule and fact carries a `^[file:line]` citation next to it. The person who runs the update approves each change, Git keeps the history, and the `company-wiki` CLI checks fields, links, relations, citations, and whether the cited source lines have changed since adoption.
 
 Company Wiki is a restructured fork of [BOAZ Wiki](https://github.com/boaz-hwang/boaz-wiki). BOAZ Wiki also keeps source summaries, overviews, open questions, research notes, and review records inside the wiki. Company Wiki narrows the wiki to adopted knowledge and moves everything else out.
 
@@ -122,7 +122,7 @@ SCHEMA and skills that `company-wiki setup` installs.
 - Slack, Jira, Notion, Confluence: [export folders and spaces/projects in scope, or none]
 - Related sessions and memory: [location, or check with me]
 - Wiki Git repository (cloned to ~/company-wiki/llm-wiki): [remote, or check with me]
-- Owners by area: [e.g. product: product-owner, or check with me]
+- Owners by area (the person doing that work; the department lead if unclear): [e.g. product: product-owner, or check with me]
 - Material to exclude: [none, or the scope]
 
 Look at the current docs and vault structure first. From the given sources, put
@@ -142,7 +142,7 @@ repository's skills.
 
 Changes go straight to the wiki repository's main branch; there are no PRs or branches.
 
-- **Agent proposals (`company-wiki review`):** draft in `workspace/wiki-changes/` → `prepare → preview` → the owner answers in the session → `decide → apply` → commit and push to main. The decision must quote a real user message from a Claude Code or Codex session. Versions, decisions, and receipts stay in `workspace/wiki-changes/`; apply runs lint, writes only the approved pages and the index, updates the registry, and prints a commit message whose trailers (`Wiki-Change`, `Wiki-Revision`, `Approved-By`, `Approval-Evidence`) link the wiki commit to the decision. See [workflow.md](skills/wiki-review/references/workflow.md).
+- **Agent proposals (`company-wiki review`):** draft in `workspace/wiki-changes/` → `prepare → preview` → the person who ran the update answers in the session → `decide → apply` → commit and push to main. The decision must quote that person's own message from a Claude Code or Codex session. Questions they cannot answer from the evidence are marked "leader check needed"; what the department lead says is review evidence, not approval. A page's `owner` is the person who does that work (the department lead if unclear), not an approval gate. Versions, decisions, and receipts stay in `workspace/wiki-changes/`; apply runs lint, writes only the approved pages and the index, updates the registry, and prints a commit message whose trailers (`Wiki-Change`, `Wiki-Revision`, `Approved-By`, `Approval-Evidence`) link the wiki commit to the decision. See [workflow.md](skills/wiki-review/references/workflow.md).
 - **Owner edits:** owners may edit their own pages directly in Obsidian or an IDE: lint → `company-wiki registry record <page>` → commit and push to main.
 
 Copy [templates/wiki-check.yml](templates/wiki-check.yml) into the wiki repository to run `company-wiki lint --wiki-only` on every push to main; it checks structure without the sources, which are not on the runner, and fails if change materials such as `card.json`, `decisions.jsonl` or `.md.txt` drafts were committed into the wiki. It detects problems after a push; checking before a change lands is the job of apply's lint and the owner's lint.
@@ -161,7 +161,7 @@ company-wiki registry record concepts/x       # re-record after you re-checked a
 
 `changed` means re-check the sentences and relations that cite those lines. `moved` means the content is the same but sits on other lines; fix the line numbers. Affected pages are found by following `depends_on`, `implements`, and `applies_to` relations backwards, transitively. `expired` means a session file was cleaned up (Claude Code keeps sessions for `cleanupPeriodDays`), so the evidence can no longer be re-checked; raise the retention or cite a result document instead. lint reports these as warnings; a missing document is an error. `--source` takes a cited form (`/alias/path`, or a `/path` from `~/company-wiki`) or a relative, absolute, or `~` file path; each is resolved to the file, and every citation of that file matches whatever its spelling. An uncited path outside every source is an error.
 
-The agent detects problems, tells the owner, and proposes fixes; it never invalidates or replaces adopted knowledge. Until the owner approves a change, the existing page stays the standard and the agent states the risk it found. It does not carry out actions that break legal, security, or safety constraints (SCHEMA section 7).
+The agent detects problems, tells the person running the update, and proposes fixes; it never invalidates or replaces adopted knowledge. Until that person approves a change, the existing page stays the standard and the agent states the risk it found. It does not carry out actions that break legal, security, or safety constraints (SCHEMA section 7).
 
 ## After the first build
 

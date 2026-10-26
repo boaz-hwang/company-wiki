@@ -10,7 +10,7 @@
 
 ---
 
-Claude Code나 Codex가 문서와 AI 세션 기록을 읽고, 조직이 실제로 채택한 지식을 찾아 연결된 Markdown으로 씁니다. 규칙과 사실마다 바로 옆에 `^[파일:줄]` 인용이 붙습니다. 변경은 페이지 담당자(owner)가 승인하고 이력은 Git이 맡습니다. `company-wiki` CLI가 필수 필드·링크·관계·인용, 그리고 채택 이후 인용한 원문 줄이 바뀌었는지를 검사합니다.
+Claude Code나 Codex가 문서와 AI 세션 기록을 읽고, 조직이 실제로 채택한 지식을 찾아 연결된 Markdown으로 씁니다. 규칙과 사실마다 바로 옆에 `^[파일:줄]` 인용이 붙습니다. 변경은 update를 실행한 담당자가 승인하고 이력은 Git이 맡습니다. `company-wiki` CLI가 필수 필드·링크·관계·인용, 그리고 채택 이후 인용한 원문 줄이 바뀌었는지를 검사합니다.
 
 [BOAZ Wiki](https://github.com/boaz-hwang/boaz-wiki)를 바탕으로 구조를 바꾼 프로젝트입니다. BOAZ Wiki는 원문 요약·종합 설명·열린 질문·연구·검토 기록까지 위키 안에 둡니다. Company Wiki는 위키를 채택 지식으로 좁히고 나머지는 밖으로 옮겼습니다.
 
@@ -122,7 +122,7 @@ company-wiki README(https://github.com/boaz-hwang/company-wiki)와
 - Slack·Jira·Notion·Confluence: [내보낸 폴더와 대상 채널·프로젝트·스페이스, 또는 없음]
 - 관련 세션·메모리: [위치 또는 확인 필요]
 - 위키 Git 저장소(~/company-wiki/llm-wiki에 clone): [원격 저장소 또는 확인 필요]
-- 영역별 담당자: [예: product: product-owner, 또는 확인 필요]
+- 영역별 담당자(그 업무를 하는 사람, 애매하면 관련 부서 리더): [예: product: product-owner, 또는 확인 필요]
 - 제외할 자료: [없음 또는 범위]
 
 먼저 현재 문서와 Vault 구조를 살펴봐줘. 지정한 원천에서 우리가 채택한 것만
@@ -139,7 +139,7 @@ concepts, entities, policies에 넣고 규칙과 사실마다 원문 줄 인용�
 
 변경은 위키 저장소의 main 브랜치에 바로 커밋합니다. PR·브랜치는 쓰지 않습니다.
 
-- **에이전트 제안 (`company-wiki review`):** `workspace/wiki-changes/`에서 초안 → `prepare → preview` → 담당자가 세션에서 답변 → `decide → apply` → main에 커밋·푸시. 결정은 Claude Code·Codex 세션의 실제 사용자 메시지를 인용해야 합니다. 버전·결정·receipt는 `workspace/wiki-changes/`에 남고, apply는 lint를 통과한 뒤 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신하며, trailer(`Wiki-Change`·`Wiki-Revision`·`Approved-By`·`Approval-Evidence`)로 위키 커밋을 그 결정에 잇는 커밋 메시지를 출력합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
+- **에이전트 제안 (`company-wiki review`):** `workspace/wiki-changes/`에서 초안 → `prepare → preview` → update를 실행한 담당자가 세션에서 답변 → `decide → apply` → main에 커밋·푸시. 결정은 Claude Code·Codex 세션에 남은 그 담당자 본인의 메시지를 인용해야 합니다. 담당자가 근거로 답할 수 없는 질문은 “리더 확인 필요”로 표시하며, 관련 부서 리더의 답은 검토 근거일 뿐 승인이 아닙니다. 페이지의 `owner`는 그 업무 담당자(애매하면 관련 부서 리더)이며 승인 조건이 아닙니다. 버전·결정·receipt는 `workspace/wiki-changes/`에 남고, apply는 lint를 통과한 뒤 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신하며, trailer(`Wiki-Change`·`Wiki-Revision`·`Approved-By`·`Approval-Evidence`)로 위키 커밋을 그 결정에 잇는 커밋 메시지를 출력합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
 - **담당자 직접 편집:** 담당자는 자기 페이지를 Obsidian·IDE에서 직접 고칠 수 있습니다. lint → `company-wiki registry record <페이지>` → main에 커밋·푸시.
 
 main에 push할 때마다 `company-wiki lint --wiki-only`를 돌리려면 [templates/wiki-check.yml](templates/wiki-check.yml)을 위키 저장소에 복사합니다. 원문이 없는 러너에서 구조만 검사하고, `card.json`·`decisions.jsonl`·`.md.txt` 초안 같은 변경 절차 자료가 위키에 커밋됐으면 실패합니다. push 뒤의 감지 장치이며, 반영 전 검사는 apply의 lint와 담당자의 lint가 맡습니다.
