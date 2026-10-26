@@ -641,6 +641,35 @@ func TestSetupSkipsAlreadyRegisteredSources(t *testing.T) {
 	}
 }
 
+// Adding sources appends blocks; the existing bytes, BOM and line endings are kept.
+func TestSetupAppendKeepsBOMAndLineEndings(t *testing.T) {
+	for _, c := range []struct{ name, old, want string }{
+		{"bom crlf", "\ufeff[wiki]\r\ntitle = \"T\"\r\n[sources.notes]\r\nkind = \"documents\"\r\npath = \"raw\"\r\n# my note\r\n\r\n\r\n", "\r\n\r\n\r\n[sources.code]\r\n"},
+		{"crlf no final newline", "[wiki]\r\n[sources.notes]\r\nkind = \"documents\"\r\npath = \"raw\" # end", "path = \"raw\" # end\r\n\r\n[sources.code]\r\n"},
+		{"lf", "\ufeff[wiki]\n[sources.notes]\nkind = \"documents\"\npath = \"raw\"\n", "path = \"raw\"\n\n[sources.code]\nkind = \"code\"\n"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			w := newWS(t)
+			w.writeConfig(c.old)
+			w.ok("setup", "--source", "code=sessions", "--source", "slack=raw")
+			got := w.read("wiki.toml")
+			if !strings.HasPrefix(got, c.old) || !strings.Contains(got, c.want) || !strings.Contains(got, "[sources.slack]") {
+				t.Fatalf("%q", got)
+			}
+			added := got[len(c.old):]
+			if crlf := strings.Contains(c.old, "\r\n"); crlf && strings.Count(added, "\n") != strings.Count(added, "\r\n") || !crlf && strings.Contains(added, "\r") {
+				t.Fatalf("mixed line endings %q", added)
+			}
+			if strings.Count(got, "\ufeff") != strings.Count(c.old, "\ufeff") {
+				t.Fatal("BOM changed")
+			}
+			if r := w.ok("lint"); !strings.Contains(r.stdout, "0 errors") {
+				t.Fatal(r.stdout)
+			}
+		})
+	}
+}
+
 func TestNewWorkspaceSkipsDuplicateSourcesInOneRun(t *testing.T) {
 	w := newWS(t)
 	must(t, os.Remove(w.config))

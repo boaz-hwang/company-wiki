@@ -1,6 +1,7 @@
 package wiki
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -160,11 +161,7 @@ func Setup(args []string, x IO) int {
 		printLines(x.Stdout, notices)
 		// Nothing new: leave wiki.toml byte for byte as it was.
 		if len(blocks) > 0 {
-			text := strings.TrimRight(strings.TrimPrefix(string(raw), "\ufeff"), "\n") + "\n"
-			for _, b := range blocks {
-				text += "\n" + b
-			}
-			if err := os.WriteFile(config, []byte(text), 0o644); err != nil {
+			if err := os.WriteFile(config, appendBlocks(raw, blocks), 0o644); err != nil {
 				return fail(err)
 			}
 		}
@@ -194,6 +191,27 @@ func Setup(args []string, x IO) int {
 	}
 	fmt.Fprintf(x.Stdout, "Config: %s. Follow the README starter prompt.\n", c.Path)
 	return 0
+}
+
+// appendBlocks adds TOML blocks after the existing bytes, which stay as they are (BOM, comments, trailing
+// blank lines). The new lines use the file's line ending, CRLF if it has any; a blank line separates them.
+func appendBlocks(raw []byte, blocks []string) []byte {
+	eol := "\n"
+	if bytes.Contains(raw, []byte("\r\n")) {
+		eol = "\r\n"
+	}
+	out := append([]byte(nil), raw...)
+	body := bytes.TrimPrefix(out, []byte("\ufeff"))
+	if len(body) > 0 && !bytes.HasSuffix(body, []byte("\n")) {
+		out = append(out, eol...)
+	}
+	for _, b := range blocks {
+		if len(bytes.TrimPrefix(out, []byte("\ufeff"))) > 0 && !bytes.HasSuffix(out, []byte("\n\n")) && !bytes.HasSuffix(out, []byte("\n\r\n")) {
+			out = append(out, eol...)
+		}
+		out = append(out, strings.ReplaceAll(b, "\n", eol)...)
+	}
+	return out
 }
 
 // registered is a source already in wiki.toml, or added earlier in the same run; root is resolved.
