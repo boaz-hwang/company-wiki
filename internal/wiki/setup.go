@@ -184,7 +184,7 @@ func Setup(args []string, x IO) int {
 	}
 	// The workspace may now be a link to a vault; resolve the change materials through it.
 	c.ChangesRoot = resolvePath(changesDir, c.Root)
-	if err := prepareWorkspace(c, x.Stdout); err != nil {
+	if err := prepareRoot(c, x.Stdout); err != nil {
 		return fail(err)
 	}
 	fmt.Fprintf(x.Stdout, "Wiki ready: %s\nChange materials: %s\n", c.WikiRoot, c.ChangesRoot)
@@ -342,7 +342,7 @@ func askSources(x IO, cwd string) ([]sourceSpec, error) {
 	return specs, nil
 }
 
-func prepareWorkspace(c *Config, out io.Writer) error {
+func prepareRoot(c *Config, out io.Writer) error {
 	if within(c.ChangesRoot, c.WikiRoot) || within(c.WikiRoot, c.ChangesRoot) {
 		return fmt.Errorf("change materials (%s) must be separate from the wiki (%s); drafts and records are not adopted knowledge", c.ChangesRoot, c.WikiRoot)
 	}
@@ -446,7 +446,7 @@ func installSkill(src fs.FS, dest string, out io.Writer) error {
 
 var pointerRE = regexp.MustCompile(`(?s)\n?<!-- (?:llm|boaz|company)-wiki -->.*?<!-- /(?:llm|boaz|company)-wiki -->\n?`)
 
-// writePointer adds or refreshes the wiki block in the workspace AGENTS.md.
+// writePointer adds or refreshes the wiki block in the root AGENTS.md.
 func writePointer(c *Config) error {
 	pointer := fmt.Sprintf("\n<!-- company-wiki -->\nWiki rules: %s. Read %s first. Change materials (drafts, reviews, decisions): %s.\n"+
 		"Tool: the company-wiki CLI (setup, lint, index, registry, review, inventory, session). Config: %s.\n<!-- /company-wiki -->\n",

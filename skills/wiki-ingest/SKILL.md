@@ -7,7 +7,7 @@ description: 지정된 문서·코드·Slack·Jira·Notion·Confluence·에이�
 
 입력은 원문 한 건 또는 사용자가 지정한 묶음이다. 결과는 근거·관계·적용 범위가 있는 위키 변경안이다. SCHEMA.md와 index를 읽는다. 기간 전체의 최신화는 [wiki-update](../wiki-update/SKILL.md)가 조사와 질문 묶음을 맡는다.
 
-wiki.toml에서 위키 위치(wiki.path)·작업 공간(wiki.state)·원천·검토자를 확인하고, 해당 위키의 SCHEMA.md를 기준으로 작업한다. 경로 예시의 llm-wiki·.llm-wiki는 설정값으로 바꾼다.
+위치는 고정이다: 설정 ~/company-wiki/wiki.toml, 위키 ~/company-wiki/llm-wiki, 변경 절차 폴더 ~/company-wiki/workspace/wiki-changes. wiki.toml에서 원천·검토자를 확인하고, 위키의 SCHEMA.md를 기준으로 작업한다.
 
 ## 1. 원천과 기존 지식 대조
 
@@ -19,7 +19,7 @@ wiki.toml에서 위키 위치(wiki.path)·작업 공간(wiki.state)·원천·검
 
 ## 2. 채택 지식만 골라 변경안 작성
 
-초안 배치·카드 형식은 [공통 검토 계약](../wiki-review/references/workflow.md)을 따른다. 초안은 작업 공간에 두며 위키 폴더에 쓰지 않는다. 필요한 변경만 작성한다.
+초안 배치·카드 형식은 [공통 검토 계약](../wiki-review/references/workflow.md)을 따른다. 초안은 변경 절차 폴더에 두며 위키 폴더에 쓰지 않는다. 필요한 변경만 작성한다.
 
 - 원문 요약 페이지를 만들지 않는다. 원문에서 조직이 채택한 개념은 concept, 대상의 정의·관계는 entity, 판단·행동 기준은 policy의 해당 문장 옆에 줄 인용으로 넣고 frontmatter sources에도 남긴다.
 - 채택 여부가 불분명한 내용, 미해결 질문, 연구 과정, 외부 주장은 위키 변경안이 아니라 "채택 판단 필요" 또는 작업 관리 항목으로 보고한다.

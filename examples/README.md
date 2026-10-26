@@ -37,7 +37,7 @@ Inside the proposal, `working/policy-change/card.json` has the judgments (fact, 
 
 1. Update the return window from "14 days for all orders" to "14 days for orders placed up to 2026-01-31, 30 days from 2026-02-01, made-to-order exclusion unchanged"? (Recommended: apply / revise / defer / exclude)
 
-There is no `decisions.jsonl` or `applied.jsonl` here, because a decision must quote a real user message from a session file. In a real workspace the owner answers that question in the session, `company-wiki review decide` records the answer, `apply` writes the page, and you commit and push it to the wiki repository's main.
+There is no `decisions.jsonl` or `applied.jsonl` here, because a decision must quote a real user message from a session file. In a real setup the owner answers that question in the session, `company-wiki review decide` records the answer, `apply` writes the page, and you commit and push it to the wiki repository's main.
 
 To check the example yourself, from the repository root:
 

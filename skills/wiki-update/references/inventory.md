@@ -1,6 +1,6 @@
 # 조사 범위 기록
 
-작업 공간(wiki.state)의 reviews/<batch>/inventory.json에 조사 경계를 남긴다. 실제 반영 기록은 위키의 Git 이력과 applied.jsonl이다.
+변경 절차 폴더(~/company-wiki/workspace/wiki-changes)의 <batch>/inventory.json에 조사 경계를 남긴다. 실제 반영 기록은 위키의 Git 이력과 applied.jsonl이다.
 
 - version: 1
 - period: from/through, 시간대 포함 ISO 시각
@@ -16,8 +16,8 @@
   "version": 1,
   "period": {"from": "2026-09-01T00:00:00+09:00", "through": "2026-09-30T23:59:59+09:00"},
   "basis": {
-    "last_apply": "reviews/2026-08-returns/applied.jsonl 2026-08-28T17:10:00+09:00, policies/returns 반영",
-    "last_full_review": "reviews/2026-08-returns/inventory.json, 2026-08-01~2026-08-31 전체 원천"
+    "last_apply": "2026-08-returns/applied.jsonl 2026-08-28T17:10:00+09:00, policies/returns 반영",
+    "last_full_review": "2026-08-returns/inventory.json, 2026-08-01~2026-08-31 전체 원천"
   },
   "sources": [
     {
@@ -42,6 +42,6 @@
 
 현재 검토 대화처럼 승인 근거로만 등록한 원천은 not_applicable과 이유를 기록할 수 있다. 같은 kind의 서로 다른 폴더도 원천별로 기록한다.
 
-`company-wiki inventory .llm-wiki/reviews/<batch>/inventory.json --require-complete`
+`company-wiki inventory ~/company-wiki/workspace/wiki-changes/<batch>/inventory.json --require-complete`
 
 종료 0은 기록상 완료, 2는 유효하지만 미완료, 1은 형식 오류다. 모든 활성 원천과 검토 항목이 완료되어야 through가 반환된다. 선언된 기록의 일관성을 검사할 뿐 실제 원천 누락·읽기·의미 대조를 보증하지 않는다. 다음 실행은 전체 조사 경계와 미반영·보류 항목을 함께 이어받는다.

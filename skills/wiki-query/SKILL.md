@@ -5,11 +5,11 @@ description: 조직이 채택한 위키 지식에 근거해 질문에 답하고 
 
 # wiki-query
 
-wiki.toml에서 위키 위치와 원천·검토자를 확인하고, 해당 위키의 SCHEMA.md를 기준으로 작업한다. 경로 예시의 llm-wiki는 설정값으로 바꾼다.
+위치는 고정이다: 설정 ~/company-wiki/wiki.toml, 위키 ~/company-wiki/llm-wiki. wiki.toml에서 원천·검토자를 확인하고, 위키의 SCHEMA.md를 기준으로 작업한다.
 
 결과는 근거 있는 답변이다. index.md의 "질문으로 찾기"·폴더별 목록·별칭·관계에서 시작해 관련 페이지를 읽는다. 위키 갱신이나 전체 원천 조사를 답변의 선행 조건으로 삼지 않는다.
 
-1. 관련 concept·entity·policy와 related로 이어진 페이지를 읽고, 결론 옆 줄 인용으로 원문을 확인한다. 작업 공간의 초안·검토 기록은 정식 지식의 근거가 아니다. 검토 기록 자체를 물었다면 승인·미반영 상태를 구분해 보여준다.
+1. 관련 concept·entity·policy와 related로 이어진 페이지를 읽고, 결론 옆 줄 인용으로 원문을 확인한다. 변경 절차 폴더(workspace/wiki-changes)의 초안·검토 기록은 정식 지식의 근거가 아니다. 검토 기록 자체를 물었다면 승인·미반영 상태를 구분해 보여준다.
 2. 여러 페이지에 걸친 질문은 related 관계를 따라 직접 종합한다. 종합 결과를 새 페이지로 저장하지 않는다.
 3. `company-wiki registry --source <경로>`(`/별칭/경로` 또는 등록 원천 안의 실제 파일 경로)나 lint 결과에서 근거가 changed·moved·expired·missing이거나, 근거 페이지가 그런 페이지에 depends_on·implements·applies_to로 기대면(`company-wiki registry --page <페이지>`) 근거를 원문과 대조한다. SCHEMA 7절에 따라 담당자가 변경을 승인하기 전까지 기존 지식을 공식 기준으로 답하되, 발견한 문제·근거·위험과 담당자(owner)를 함께 밝히고 수정안을 [wiki-ingest](../wiki-ingest/SKILL.md)로 제안한다. 에이전트의 판단으로 공식 지식을 무효화하거나 다른 기준으로 대체해 답하지 않는다. 그 기준대로 실행하면 법률·보안·안전 등 상위의 강제 제약을 어기게 되면 실행을 권하지 않고 그 이유를 밝힌다.
 4. 결론 → 근거 페이지 링크·원문 인용 → 불확실한 부분 순서로 답한다. 양립하지 않는 지식은 양쪽의 시점·조건·근거를 보여준다.

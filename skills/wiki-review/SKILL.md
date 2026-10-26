@@ -7,9 +7,9 @@ description: 위키 변경안의 근거·의미·범위를 검토해 담당자�
 
 SCHEMA.md와 [실행 형식](references/workflow.md)이 공통 계약이다. 입력은 변경 초안·사용자 응답 또는 기존 위키 점검 요청이다. 전체 원천 조사는 update, 원천 기반 초안은 ingest, 답변과 파일링 초안은 query가 맡는다. 구조 검사는 `company-wiki lint`가 수행한다.
 
-wiki.toml에서 위키 위치(wiki.path)·작업 공간(wiki.state)·원천·검토자를 확인하고, 해당 위키의 SCHEMA.md를 기준으로 작업한다. 경로 예시의 llm-wiki·.llm-wiki는 설정값으로 바꾼다.
+위치는 고정이다: 설정 ~/company-wiki/wiki.toml, 위키 ~/company-wiki/llm-wiki, 변경 절차 폴더 ~/company-wiki/workspace/wiki-changes. wiki.toml에서 원천·검토자를 확인하고, 위키의 SCHEMA.md를 기준으로 작업한다.
 
-반영 경로는 `company-wiki review`의 **prepare → preview → 담당자(owner)의 세션 답변 → decide → apply → 위키 저장소 main에 커밋·푸시**다. PR·브랜치는 쓰지 않는다. 담당자가 자기 페이지를 직접 고친 경우는 lint → `company-wiki registry record <페이지>` → main 커밋·푸시로 반영된다. 검토 기록은 작업 공간에 두고 위키에 넣지 않는다.
+반영 경로는 `company-wiki review`의 **prepare → preview → 담당자(owner)의 세션 답변 → decide → apply → 위키 저장소 main에 커밋·푸시**다. PR·브랜치는 쓰지 않는다. 담당자가 자기 페이지를 직접 고친 경우는 lint → `company-wiki registry record <페이지>` → main 커밋·푸시로 반영된다. 검토 기록은 변경 절차 폴더에 두고 위키에 넣지 않는다.
 
 ## 출력 계약
 

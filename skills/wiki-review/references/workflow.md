@@ -1,12 +1,12 @@
 # 위키 검토 도구 사용법
 
-`company-wiki` CLI로 실행한다. 명령은 현재 폴더부터 위로 wiki.toml을 찾고, WIKI_CONFIG로 다른 설정을 지정할 수 있다. 규칙은 `SCHEMA.md`의 변경과 승인 절이다. `llm-wiki`(위키)와 `.llm-wiki`(작업 공간)는 기본값이며 실제 경로와 검토자는 wiki.toml을 따른다.
+`company-wiki` CLI로 실행한다. 명령은 어느 폴더에서나 ~/company-wiki/wiki.toml을 쓴다(WIKI_CONFIG나 현재 폴더부터 위로 찾은 wiki.toml이 있으면 그것). 규칙은 `SCHEMA.md`의 변경과 승인 절이다. 위키는 ~/company-wiki/llm-wiki, 변경 절차 폴더는 ~/company-wiki/workspace/wiki-changes로 고정이며 검토자는 wiki.toml을 따른다.
 
 ## 반영 경로 (main 직접 커밋)
 
 PR·브랜치는 쓰지 않고 위키 저장소의 main에 직접 커밋·푸시한다. 채택 승인은 Git 병합이 아니라 담당자의 decide 기록이다.
 
-- 에이전트 제안(기본): 작업 공간 초안 → prepare → preview → 담당자가 세션에서 답변 → decide → apply → main 커밋·푸시. 아래 검토 도구 절차를 따른다.
+- 에이전트 제안(기본): 변경 절차 폴더의 초안 → prepare → preview → 담당자가 세션에서 답변 → decide → apply → main 커밋·푸시. 아래 검토 도구 절차를 따른다.
 - 담당자 직접 편집: 자기 페이지를 고친 뒤 lint → `registry record <페이지>` → main 커밋·푸시.
 
 ```bash
@@ -34,12 +34,12 @@ main에 있으면 채택이며 이력은 Git이 맡는다. 판단·근거는 변
 
 ## 검토 도구 (company-wiki review)
 
-에이전트 제안은 이 도구로 담당자 결정을 받는다. 검토 파일은 작업 공간에 남고 위키에는 승인된 페이지·index·.verification/registry.json만 쓰인다.
+에이전트 제안은 이 도구로 담당자 결정을 받는다. 검토 파일은 변경 절차 폴더에 남고 위키에는 승인된 페이지·index·.verification/registry.json만 쓰인다.
 
 ## 파일 배치
 
 ```text
-.llm-wiki/reviews/<batch>/
+~/company-wiki/workspace/wiki-changes/<batch>/
   working/<topic>/card.json
   working/<topic>/draft/policies/example.md.txt
   working/<topic>/draft/concepts/example.md.txt
@@ -105,7 +105,7 @@ main에 있으면 채택이며 이력은 Git이 맡는다. 판단·근거는 변
 ## 준비와 검토
 
 ```bash
-company-wiki review prepare batch-id topic-id --card .llm-wiki/reviews/batch-id/working/topic-id/card.json --draft-dir .llm-wiki/reviews/batch-id/working/topic-id/draft
+company-wiki review prepare batch-id topic-id --card ~/company-wiki/workspace/wiki-changes/batch-id/working/topic-id/card.json --draft-dir ~/company-wiki/workspace/wiki-changes/batch-id/working/topic-id/draft
 company-wiki review preview batch-id topic-id
 company-wiki review status batch-id
 ```
@@ -121,7 +121,7 @@ prepare가 전체 revision 해시와 review.md 경로를 출력한다. preview�
 
 ## 사람 판단 기록
 
-사용자의 답을 다음 response.json으로 옮긴다. 파일은 `reviews/<batch>/working/`에 둔다. 판단은 카드의 정확한 버전에만 적용한다.
+사용자의 답을 다음 response.json으로 옮긴다. 파일은 `<batch>/working/`에 둔다. 판단은 카드의 정확한 버전에만 적용한다.
 
 ```json
 {
@@ -136,10 +136,10 @@ prepare가 전체 revision 해시와 review.md 경로를 출력한다. preview�
 ```
 
 ```bash
-company-wiki review decide batch-id topic-id --revision FULL_REVISION_HASH --decision approved --response .llm-wiki/reviews/batch-id/working/response.json
+company-wiki review decide batch-id topic-id --revision FULL_REVISION_HASH --decision approved --response ~/company-wiki/workspace/wiki-changes/batch-id/working/response.json
 ```
 
-decision: approved / changes_requested / deferred / rejected. quote는 실제 사용자 메시지의 연속된 원문이어야 한다. Claude 일반·작업 중 추가 메시지와 Codex 사용자 메시지를 지원한다. 모델·도구 출력을 인용하면 실패한다. 원본 세션 파일은 위키에 복사하지 않는다. `WIKI_CLAUDE_SESSIONS_DIR`와 `WIKI_CODEX_SESSIONS_DIR`로 원본 위치를 지정할 수 있다.
+decision: approved / changes_requested / deferred / rejected. quote는 실제 사용자 메시지의 연속된 원문이어야 한다. Claude 일반·작업 중 추가 메시지와 Codex 사용자 메시지를 지원한다. 모델·도구 출력을 인용하면 실패한다. 원본 세션 파일은 위키에 복사하지 않는다. 세션 원본 위치는 wiki.toml의 claude·codex 원천(별칭 claude-sessions·codex-sessions)이다.
 
 “제안대로”는 사용자가 보고 답한 항목에만 매핑한다. 수정 지시가 있으면 기존 버전에 changes_requested를 기록하고 초안을 고쳐 prepare한다. 그 지시를 그대로 구현한 새 버전은 같은 사용자 발언을 근거로 approved를 기록할 수 있다. 지시에 없던 결론·연결까지 생기면 그 차이를 다시 물어야 한다. 응답 유형별 내용을 정리하는 것은 에이전트의 책임이며 스크립트가 의미 일치를 판정하지 않는다.
 
@@ -150,7 +150,7 @@ company-wiki review apply batch-id topic-id
 company-wiki review status
 ```
 
-apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하고 임시 전체 lint를 통과한 뒤 반영한다. 위키에는 선택한 페이지·파생 index·.verification/registry.json(인용 줄 해시)만 쓰고, 작업 공간에는 반영 receipt(applied.jsonl)를 쓴다. 적용된 동일 버전 재실행은 추가 쓰기를 하지 않고 같은 커밋 메시지를 다시 출력한다. 반영 뒤 apply가 출력한 커밋 메시지로 반영 경로대로 main에 커밋·푸시한다.
+apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하고 임시 전체 lint를 통과한 뒤 반영한다. 위키에는 선택한 페이지·파생 index·.verification/registry.json(인용 줄 해시)만 쓰고, 변경 절차 폴더에는 반영 receipt(applied.jsonl)를 쓴다. 적용된 동일 버전 재실행은 추가 쓰기를 하지 않고 같은 커밋 메시지를 다시 출력한다. 반영 뒤 apply가 출력한 커밋 메시지로 반영 경로대로 main에 커밋·푸시한다.
 
 기준이 바뀌면 오류가 해당 항목과 경로를 알려준다. 그 주제만 현재 문서에서 다시 준비해 차이를 검토한다. 다른 주제 승인은 재사용한다. 경고는 사람이 판단할 내용으로 보고하며 errors는 반영을 막는다. 소스·세션을 읽을 수 없으면 검사를 우회하지 말고 그 항목의 근거를 복원한다.
 
@@ -160,4 +160,4 @@ apply는 최신 버전의 승인·근거·변경 전 상태를 다시 확인하�
 company-wiki review recover
 ```
 
-복구 대상에 제3의 편집 내용이 있으면 덮어쓰지 않고 중단한다. journal before/after와 현재 파일을 대조하고 사용자 작업을 보존한 뒤 재시도한다. 위키에는 변경 페이지·index·.verification/registry.json만 커밋한다. 카드·판단·receipt는 작업 공간 기록이며 사용자가 지정한 저장소와 공개 범위를 따른다.
+복구 대상에 제3의 편집 내용이 있으면 덮어쓰지 않고 중단한다. journal before/after와 현재 파일을 대조하고 사용자 작업을 보존한 뒤 재시도한다. 위키에는 변경 페이지·index·.verification/registry.json만 커밋한다. 카드·판단·receipt는 변경 절차 폴더의 기록이며 위키 저장소에 커밋하지 않는다.

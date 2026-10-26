@@ -18,26 +18,26 @@ func page(title, body, extra string) []byte {
 }
 
 type fixture struct {
-	t                                *testing.T
-	repo, wiki, state, raw, sessions string
-	cfg                              *Config
-	r                                *Review
-	response                         map[string]any
+	t                                  *testing.T
+	repo, wiki, changes, raw, sessions string
+	cfg                                *Config
+	r                                  *Review
+	response                           map[string]any
 }
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
 	f := &fixture{t: t, repo: resolvePath(t.TempDir(), "")}
 	f.wiki = filepath.Join(f.repo, "docs", "wiki")
-	f.state = filepath.Join(f.repo, "workspace", "wiki-changes")
+	f.changes = filepath.Join(f.repo, "workspace", "wiki-changes")
 	f.raw = filepath.Join(f.repo, "raw.md")
 	f.sessions = filepath.Join(f.repo, "sessions")
 	must(t, os.MkdirAll(f.wiki, 0o755))
 	must(t, os.MkdirAll(f.sessions, 0o755))
 	must(t, os.WriteFile(f.raw, []byte("actual evidence\nsecond line\n"), 0o644))
-	f.cfg = &Config{WikiRoot: f.wiki, RepoRoot: f.repo, ChangesRoot: f.state, Title: "Company Wiki", Reviewer: "human:owner",
+	f.cfg = &Config{WikiRoot: f.wiki, RepoRoot: f.repo, ChangesRoot: f.changes, Title: "Company Wiki", Reviewer: "human:owner",
 		ExtraRoots: map[string]string{"claude-sessions": f.sessions, "codex-sessions": f.sessions}, RequiredSources: map[string]bool{}, RequiredKinds: map[string]bool{"documents": true}}
-	r, err := newReview(f.cfg, f.wiki, f.repo, f.state)
+	r, err := newReview(f.cfg, f.wiki, f.repo, f.changes)
 	must(t, err)
 	f.r = r
 	f.record(map[string]any{"type": "user", "message": map[string]any{"content": "검토한 범위로 승인합니다"}})
@@ -189,11 +189,11 @@ func TestExactApprovalApplyReceiptAndIdempotence(t *testing.T) {
 		t.Fatal("records leaked into the wiki")
 	}
 	var receipt map[string]any
-	must(t, json.Unmarshal(readBytes(filepath.Join(f.state, "batch/applied.jsonl")), &receipt))
+	must(t, json.Unmarshal(readBytes(filepath.Join(f.changes, "batch/applied.jsonl")), &receipt))
 	if receipt["decision_evidence"] != f.response["evidence"] {
 		t.Fatal(receipt)
 	}
-	if exists(filepath.Join(f.state, "registry.json")) {
+	if exists(filepath.Join(f.changes, "registry.json")) {
 		t.Fatal("registry written to the workspace")
 	}
 	var reg Registry
@@ -531,8 +531,8 @@ func TestOverlayResourcesUseProposedVersion(t *testing.T) {
 
 func TestReviewCitationsAreNotAuthoritative(t *testing.T) {
 	f := newFixture(t)
-	must(t, os.MkdirAll(f.state, 0o755))
-	must(t, os.WriteFile(filepath.Join(f.state, "proposal.md"), []byte("speculative claim\n"), 0o644))
+	must(t, os.MkdirAll(f.changes, 0o755))
+	must(t, os.WriteFile(filepath.Join(f.changes, "proposal.md"), []byte("speculative claim\n"), 0o644))
 	f.prepare("one", one("concepts/a.md", page("a", "^[/workspace/wiki-changes/proposal.md:1]", "")), nil)
 	_, err := f.r.Preview("batch", []string{"one"})
 	wantErr(t, err, "검토 사본")

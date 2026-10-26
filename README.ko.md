@@ -45,7 +45,7 @@ Claude Code나 Codex가 문서와 AI 세션 기록을 읽고, 조직이 실제�
 | `overviews/` | 제거 | 관계는 `related`에 두고 index가 목록을 생성, 종합은 질의 때 에이전트가 수행 |
 | `questions/` | 밖으로 | 미해결 질문은 채택 지식이 아님. 반복 질문은 페이지의 `answers`로 |
 | `research/` | 밖으로 | 연구는 채택 전 단계. 확정 결과만 concept·policy로 승격 |
-| `reviews/`, `log.md` | 작업 공간·Git으로 | 검토 기록과 이력은 지식이 아님 |
+| `reviews/`, `log.md` | `workspace/wiki-changes/`·Git으로 | 검토 기록과 이력은 지식이 아님 |
 | `status`, `verified` | 제거 | 기본 브랜치에 있으면 채택된 것, 이력은 Git |
 | — | `policies/` 추가 | 현재 적용하는 판단·행동 기준 |
 
@@ -139,7 +139,7 @@ concepts, entities, policies에 넣고 규칙과 사실마다 원문 줄 인용�
 
 변경은 위키 저장소의 main 브랜치에 바로 커밋합니다. PR·브랜치는 쓰지 않습니다.
 
-- **에이전트 제안 (`company-wiki review`):** 작업 공간에서 초안 → `prepare → preview` → 담당자가 세션에서 답변 → `decide → apply` → main에 커밋·푸시. 결정은 Claude Code·Codex 세션의 실제 사용자 메시지를 인용해야 합니다. 버전·결정·receipt는 작업 공간에 남고, apply는 lint를 통과한 뒤 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
+- **에이전트 제안 (`company-wiki review`):** `workspace/wiki-changes/`에서 초안 → `prepare → preview` → 담당자가 세션에서 답변 → `decide → apply` → main에 커밋·푸시. 결정은 Claude Code·Codex 세션의 실제 사용자 메시지를 인용해야 합니다. 버전·결정·receipt는 `workspace/wiki-changes/`에 남고, apply는 lint를 통과한 뒤 승인된 페이지와 index만 위키에 쓰고 레지스트리를 갱신하며, trailer(`Wiki-Change`·`Wiki-Revision`·`Approved-By`·`Approval-Evidence`)로 위키 커밋을 그 결정에 잇는 커밋 메시지를 출력합니다. [workflow.md](skills/wiki-review/references/workflow.md) 참고.
 - **담당자 직접 편집:** 담당자는 자기 페이지를 Obsidian·IDE에서 직접 고칠 수 있습니다. lint → `company-wiki registry record <페이지>` → main에 커밋·푸시.
 
 main에 push할 때마다 `company-wiki lint --wiki-only`를 돌리려면 [templates/wiki-check.yml](templates/wiki-check.yml)을 위키 저장소에 복사합니다. 원문이 없는 러너에서 구조만 검사하고, `card.json`·`decisions.jsonl`·`.md.txt` 초안 같은 변경 절차 자료가 위키에 커밋됐으면 실패합니다. push 뒤의 감지 장치이며, 반영 전 검사는 apply의 lint와 담당자의 lint가 맡습니다.

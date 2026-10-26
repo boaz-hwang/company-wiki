@@ -1,4 +1,4 @@
-// Package companywiki embeds the files setup installs into a workspace, so the
+// Package companywiki embeds the files setup installs into ~/company-wiki, so the
 // binary works without a clone of this repository.
 package companywiki
 

@@ -33,7 +33,7 @@ var (
 	decisions     = map[string]bool{"approved": true, "changes_requested": true, "deferred": true, "rejected": true}
 )
 
-// NewReview opens the review workspace for cfg.
+// NewReview opens the change materials of cfg.
 func NewReview(cfg *Config) (*Review, error) {
 	return newReview(cfg, cfg.WikiRoot, cfg.RepoRoot, cfg.ChangesRoot)
 }

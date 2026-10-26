@@ -203,7 +203,7 @@ func Lint(c *Config, out io.Writer) int {
 	}
 
 	if len(unchecked) > 0 {
-		infos = append(infos, fmt.Sprintf("인용 %d개(원문 %d개)의 파일·줄 범위·해시는 CI에서 확인 불가 (--wiki-only). 원문이 있는 작업 공간에서 company-wiki lint·registry로 확인", len(unchecked), len(uncheckedFiles)))
+		infos = append(infos, fmt.Sprintf("인용 %d개(원문 %d개)의 파일·줄 범위·해시는 CI에서 확인 불가 (--wiki-only). 원문이 있는 ~/company-wiki에서 company-wiki lint·registry로 확인", len(unchecked), len(uncheckedFiles)))
 	}
 	for _, p := range pages {
 		if inbound[p.Slug] == 0 {
