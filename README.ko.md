@@ -92,7 +92,7 @@ irm https://raw.githubusercontent.com/boaz-hwang/company-wiki/main/install.ps1 |
 cd /path/to/workspace && company-wiki setup
 ```
 
-에이전트는 터미널 질문에 답할 수 없으므로, 등록할 원천과 경로를 사용자에게 먼저 묻고 옵션으로 넘깁니다(`company-wiki setup --list-kinds`로 종류 확인). 나중에 `--source`로 다시 실행하면 기존 설정에 원천을 추가합니다.
+에이전트는 터미널 질문에 답할 수 없으므로, 등록할 원천과 경로를 사용자에게 먼저 묻고 옵션으로 넘깁니다(`company-wiki setup --list-kinds`로 종류 확인). 나중에 `--source`로 다시 실행하면 기존 설정에 원천을 추가하며, 같은 종류·경로로 이미 등록된 원천은 건너뜁니다.
 
 ```bash
 company-wiki setup --source documents=../docs --source slack=../exports/slack \

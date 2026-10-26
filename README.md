@@ -92,7 +92,7 @@ To set up a workspace yourself, run setup in a terminal inside the workspace fol
 cd /path/to/workspace && company-wiki setup
 ```
 
-Agents cannot answer terminal prompts, so they ask you which sources and paths to register and pass them as options (`company-wiki setup --list-kinds` shows the kinds). Run with `--source` again later to add sources to an existing config.
+Agents cannot answer terminal prompts, so they ask you which sources and paths to register and pass them as options (`company-wiki setup --list-kinds` shows the kinds). Run with `--source` again later to add sources to an existing config; a source already registered with the same kind and path is skipped.
 
 ```bash
 company-wiki setup --source documents=../docs --source slack=../exports/slack \

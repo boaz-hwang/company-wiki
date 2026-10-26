@@ -441,3 +441,55 @@ func TestRegistrySourceAcceptsFilePaths(t *testing.T) {
 		}
 	}
 }
+
+func TestSetupSkipsAlreadyRegisteredSources(t *testing.T) {
+	w := newWS(t)
+	home := resolvePath(t.TempDir(), "")
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	must(t, os.MkdirAll(filepath.Join(home, "hdocs"), 0o755))
+	w.ok("setup")
+	before := w.read("wiki.toml") // starts with a BOM, so any rewrite would show
+	for _, c := range []struct{ spec, notice string }{
+		{"documents=raw", "이미 등록됨: documents raw (별칭 notes)"},
+		{"documents=./raw/", "이미 등록됨: documents ./raw/ (별칭 notes)"},
+		{"documents=knowledge/../raw", "(별칭 notes)"},
+		{"documents=" + filepath.Join(w.root, "raw"), "(별칭 notes)"},
+		{"documents:docs2=raw", "이미 등록됨: documents raw (별칭 notes). 별칭 docs2 는 추가하지 않음"},
+		{"claude=sessions", "이미 등록됨: claude sessions (별칭 claude-sessions)"},
+	} {
+		r := w.ok("setup", "--source", c.spec)
+		if !strings.Contains(r.stdout, c.notice) || w.read("wiki.toml") != before {
+			t.Fatal(c.spec, r.stdout)
+		}
+	}
+	// The same folder as another kind is a different source.
+	if r := w.ok("setup", "--source", "code=raw"); strings.Contains(r.stdout, "이미 등록됨") || !strings.Contains(w.read("wiki.toml"), "[sources.code]\nkind = \"code\"\npath = 'raw'") {
+		t.Fatal("code source not added", r.stdout)
+	}
+	// ~ and absolute spellings of one folder, in one run and across runs.
+	added := w.read("wiki.toml")
+	r := w.ok("setup", "--source", "documents=~/hdocs", "--source", "documents="+filepath.Join(home, "hdocs"))
+	toml := w.read("wiki.toml")
+	if strings.Count(toml, "kind = \"documents\"") != 1 || !strings.Contains(toml, "path = '~/hdocs'") || !strings.Contains(r.stdout, "(별칭 documents)") || !strings.HasPrefix(toml, strings.TrimRight(added, "\n")) {
+		t.Fatal(toml, r.stdout)
+	}
+	w.ok("setup", "--source", "documents="+filepath.Join(home, "hdocs"))
+	if w.read("wiki.toml") != toml {
+		t.Fatal("absolute spelling of ~/hdocs added again")
+	}
+	if strings.Contains(w.ok("lint").stdout, "ERROR") {
+		t.Fatal("lint")
+	}
+}
+
+func TestNewWorkspaceSkipsDuplicateSourcesInOneRun(t *testing.T) {
+	w := newWS(t)
+	must(t, os.Remove(w.config))
+	r := w.ok("setup", "--source", "documents=raw", "--source", "documents:again=./raw", "--source", "code=raw")
+	toml := w.read("wiki.toml")
+	if strings.Count(toml, "[sources.") != 2 || !strings.Contains(toml, "[sources.documents]") || !strings.Contains(toml, "[sources.code]") ||
+		!strings.Contains(r.stdout, "이미 등록됨: documents ./raw (별칭 documents). 별칭 again 는 추가하지 않음") {
+		t.Fatal(toml, r.stdout)
+	}
+}

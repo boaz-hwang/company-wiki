@@ -22,6 +22,7 @@ const setupHelp = `Prepare a wiki workspace without replacing existing files.
   company-wiki setup                                   새 작업 공간이면 원천을 체크박스로 고른다 (터미널)
   company-wiki setup --source documents=~/docs --source claude=~/.claude/projects/X
                                                        에이전트·스크립트용. 기존 설정에는 원천을 추가한다
+                                                       (같은 종류·경로로 이미 등록된 원천은 건너뛴다)
   company-wiki setup --list-kinds                      등록할 수 있는 원천 종류
 
 wiki.toml은 WIKI_CONFIG, 없으면 현재 폴더부터 위로 찾은 wiki.toml, 그것도 없으면 현재 폴더에 만든다.`
@@ -87,11 +88,12 @@ func Setup(args []string, x IO) int {
 				return 1
 			}
 		}
-		blocks, err := sourceBlocks(specs, map[string]bool{}, base)
+		blocks, notices, err := sourceBlocks(specs, map[string]bool{}, nil, base)
 		if err != nil {
 			fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
 			return 1
 		}
+		printLines(x.Stdout, notices)
 		text := wikiBlock
 		for _, b := range blocks {
 			text += "\n" + b
@@ -112,23 +114,35 @@ func Setup(args []string, x IO) int {
 			return 1
 		}
 		taken := map[string]bool{}
+		var known []registered
 		if sources, ok := data["sources"].(map[string]any); ok {
-			for k := range sources {
-				taken[k] = true
+			for _, alias := range sortedKeys(mapKeys(sources)) {
+				taken[alias] = true
+				entry, _ := sources[alias].(map[string]any)
+				kind, _ := entry["kind"].(string)
+				p, _ := entry["path"].(string)
+				enabled, isBool := entry["enabled"].(bool)
+				if kind != "" && p != "" {
+					known = append(known, registered{alias, kind, resolvePath(expandUser(p), base), enabled || !isBool})
+				}
 			}
 		}
-		blocks, err := sourceBlocks(specs, taken, base)
+		blocks, notices, err := sourceBlocks(specs, taken, known, base)
 		if err != nil {
 			fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
 			return 1
 		}
-		text := strings.TrimRight(strings.TrimPrefix(string(raw), "\ufeff"), "\n") + "\n"
-		for _, b := range blocks {
-			text += "\n" + b
-		}
-		if err := os.WriteFile(config, []byte(text), 0o644); err != nil {
-			fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
-			return 1
+		printLines(x.Stdout, notices)
+		// Nothing new: leave wiki.toml byte for byte as it was.
+		if len(blocks) > 0 {
+			text := strings.TrimRight(strings.TrimPrefix(string(raw), "\ufeff"), "\n") + "\n"
+			for _, b := range blocks {
+				text += "\n" + b
+			}
+			if err := os.WriteFile(config, []byte(text), 0o644); err != nil {
+				fmt.Fprintf(x.Stderr, "ERROR: %v\n", err)
+				return 1
+			}
 		}
 	}
 	env := x.Env
@@ -164,27 +178,68 @@ func Setup(args []string, x IO) int {
 	return 0
 }
 
-func sourceBlocks(specs []sourceSpec, taken map[string]bool, base string) ([]string, error) {
-	var out []string
+// registered is a source already in wiki.toml, or added earlier in the same run; root is resolved.
+type registered struct {
+	alias, kind, root string
+	enabled           bool
+}
+
+// sourceBlocks returns the TOML blocks for new sources and notices for skipped ones. A source with the
+// same kind and resolved path as a registered one is skipped, even under another alias; the same path
+// with another kind is a different source.
+func sourceBlocks(specs []sourceSpec, taken map[string]bool, known []registered, base string) ([]string, []string, error) {
+	var out, notices []string
+next:
 	for _, s := range specs {
-		if !exists(resolvePath(expandUser(s.path), base)) {
-			return nil, fmt.Errorf("원천 경로가 없습니다: %s %s", s.kind, s.path)
+		root := resolvePath(expandUser(s.path), base)
+		if !exists(root) {
+			return nil, nil, fmt.Errorf("원천 경로가 없습니다: %s %s", s.kind, s.path)
+		}
+		for _, r := range known {
+			if r.kind != s.kind || r.root != root {
+				continue
+			}
+			msg := fmt.Sprintf("이미 등록됨: %s %s (별칭 %s", s.kind, s.path, r.alias)
+			if !r.enabled {
+				msg += ", enabled = false"
+			}
+			msg += ")"
+			if s.alias != "" && s.alias != r.alias {
+				msg += fmt.Sprintf(". 별칭 %s 는 추가하지 않음", s.alias)
+			}
+			notices = append(notices, msg)
+			continue next
 		}
 		alias := s.alias
 		if alias == "" {
 			alias = chooseAlias(s.kind, s.path, taken)
 		}
 		if taken[alias] {
-			return nil, fmt.Errorf("이미 등록된 원천 별칭입니다: %s", alias)
+			return nil, nil, fmt.Errorf("이미 등록된 원천 별칭입니다: %s", alias)
 		}
 		taken[alias] = true
 		block, err := sourceBlock(alias, s.kind, s.path)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		out = append(out, block)
+		known = append(known, registered{alias, s.kind, root, true})
 	}
-	return out, nil
+	return out, notices, nil
+}
+
+func mapKeys(m map[string]any) map[string]bool {
+	out := make(map[string]bool, len(m))
+	for k := range m {
+		out[k] = true
+	}
+	return out
+}
+
+func printLines(out io.Writer, lines []string) {
+	for _, l := range lines {
+		fmt.Fprintln(out, l)
+	}
 }
 
 func askSources(x IO, base string) ([]sourceSpec, error) {
