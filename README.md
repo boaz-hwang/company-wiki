@@ -89,7 +89,7 @@ irm https://raw.githubusercontent.com/boaz-hwang/company-wiki/main/install.ps1 |
 
 The script downloads the release for your OS and CPU from [GitHub Releases](https://github.com/boaz-hwang/company-wiki/releases) into `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\company-wiki`, added to your user PATH). Check with `company-wiki version`. To build from source instead: `go install github.com/boaz-hwang/company-wiki/cmd/company-wiki@latest`.
 
-Run setup from any folder. It always prepares `~/company-wiki` (Windows: `%USERPROFILE%\company-wiki`) and never replaces existing files. In a terminal it shows a checklist of source kinds: move with ↑↓, toggle with space, confirm with enter, then type each path. Paths that do not exist are rejected.
+Run setup from any folder. It always prepares `~/company-wiki` (Windows: `%USERPROFILE%\company-wiki`) and never replaces existing files; if `~/company-wiki` is a clone of this tool's repository it stops without writing anything. In a terminal it shows a checklist of source kinds: move with ↑↓, toggle with space, confirm with enter, then type each path. Paths that do not exist are rejected.
 
 ```bash
 company-wiki setup

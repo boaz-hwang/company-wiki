@@ -89,7 +89,7 @@ irm https://raw.githubusercontent.com/boaz-hwang/company-wiki/main/install.ps1 |
 
 스크립트가 OS와 CPU에 맞는 파일을 [GitHub Releases](https://github.com/boaz-hwang/company-wiki/releases)에서 받아 `~/.local/bin`에 둡니다(Windows는 `%LOCALAPPDATA%\Programs\company-wiki`에 두고 사용자 PATH에 추가). `company-wiki version`으로 확인합니다. 소스로 빌드하려면 `go install github.com/boaz-hwang/company-wiki/cmd/company-wiki@latest`.
 
-setup은 어느 폴더에서 실행해도 항상 `~/company-wiki`(Windows: `%USERPROFILE%\company-wiki`)를 준비하며 기존 파일을 바꾸지 않습니다. 터미널에서는 원천 종류가 체크박스로 나오고, ↑↓로 이동하고 space로 선택한 뒤 enter로 넘어가 경로를 입력합니다. 없는 경로는 받지 않습니다.
+setup은 어느 폴더에서 실행해도 항상 `~/company-wiki`(Windows: `%USERPROFILE%\company-wiki`)를 준비하며 기존 파일을 바꾸지 않습니다. `~/company-wiki`가 이 도구 저장소의 clone이면 아무것도 쓰지 않고 멈춥니다. 터미널에서는 원천 종류가 체크박스로 나오고, ↑↓로 이동하고 space로 선택한 뒤 enter로 넘어가 경로를 입력합니다. 없는 경로는 받지 않습니다.
 
 ```bash
 company-wiki setup

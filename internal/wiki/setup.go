@@ -86,6 +86,11 @@ func Setup(args []string, x IO) int {
 	if err != nil {
 		return fail(err)
 	}
+	// A clone of this tool at ~/company-wiki would get a wiki, a workspace and skills mixed into its source tree.
+	if isToolkitRepo(base) {
+		return fail(fmt.Errorf("%s는 company-wiki 도구 저장소의 checkout이다. setup은 이 폴더를 위키 루트로 쓰지 않으며 아무것도 쓰지 않았다. "+
+			"도구 저장소를 다른 이름으로 옮기고(예: mv %s %s-tool) 다시 실행", base, base, base))
+	}
 	if vault != "" {
 		vault = vaultPath(vault, x.Dir)
 		// A bad --vault fails before anything is written; an existing workspace makes it unused.
@@ -398,9 +403,6 @@ func prepareRoot(c *Config, out io.Writer) error {
 			}
 		}
 	}
-	if isToolkitRepo(c.Root) {
-		return nil
-	}
 	return writePointer(c)
 }
 
@@ -478,8 +480,11 @@ func writePointer(c *Config) error {
 	return os.WriteFile(target, []byte(updated), 0o644)
 }
 
-// isToolkitRepo keeps setup from writing a pointer into this tool's own repository.
+// isToolkitRepo reports a checkout of this tool's own repository, which setup never uses as the wiki root.
 func isToolkitRepo(dir string) bool {
+	if isDir(filepath.Join(dir, "cmd", "company-wiki")) {
+		return true
+	}
 	b, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	return err == nil && strings.Contains(string(b), "module github.com/boaz-hwang/company-wiki")
 }

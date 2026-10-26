@@ -128,6 +128,34 @@ func TestSetupIdempotentPreservesHumanFilesAndSkills(t *testing.T) {
 	}
 }
 
+func TestSetupRefusesToolRepositoryCheckout(t *testing.T) {
+	for _, marker := range []struct{ rel, data string }{
+		{"go.mod", "module github.com/boaz-hwang/company-wiki\n\ngo 1.27\n"},
+		{"cmd/company-wiki/main.go", "package main\n"},
+	} {
+		home := resolvePath(t.TempDir(), "")
+		setHome(t, home)
+		root := filepath.Join(home, "company-wiki")
+		p := filepath.Join(root, filepath.FromSlash(marker.rel))
+		must(t, os.MkdirAll(filepath.Dir(p), 0o755))
+		must(t, os.WriteFile(p, []byte(marker.data), 0o644))
+		must(t, os.MkdirAll(filepath.Join(home, "docs"), 0o755))
+		vault := filepath.Join(home, "vault")
+		must(t, os.MkdirAll(vault, 0o755))
+		before := snapshotTree(home)
+		var out, errOut bytes.Buffer
+		code := Main([]string{"setup", "--source", "documents=" + filepath.Join(home, "docs"), "--vault", vault},
+			IO{Env: func(string) string { return "" }, Dir: home, Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errOut})
+		if code != 1 || !strings.Contains(errOut.String(), "도구 저장소의 checkout") || out.Len() != 0 {
+			t.Fatal(marker.rel, code, out.String(), errOut.String())
+		}
+		if after := snapshotTree(home); len(after) != len(before) || exists(filepath.Join(root, "wiki.toml")) || exists(filepath.Join(root, "workspace")) ||
+			exists(filepath.Join(root, "llm-wiki")) || exists(filepath.Join(vault, "wiki-changes")) {
+			t.Fatal("setup wrote into the tool checkout", marker.rel)
+		}
+	}
+}
+
 func TestSetupRefreshesPreviousToolkitPointer(t *testing.T) {
 	w := newWS(t)
 	w.ok("setup")
